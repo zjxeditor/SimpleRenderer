@@ -1,0 +1,65 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="mesh">
+      <UniqueIdentifier>{e6a96e27-2d61-49d9-9c8e-681273af6812}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="utility">
+      <UniqueIdentifier>{4ce00f9e-6c44-405a-9a4a-3e5cbf65e921}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="utility\fileutil.cpp">
+      <Filter>utility</Filter>
+    </ClCompile>
+    <ClCompile Include="test.cpp" />
+    <ClCompile Include="utility\floatfile.cpp">
+      <Filter>utility</Filter>
+    </ClCompile>
+    <ClCompile Include="utility\memory.cpp">
+      <Filter>utility</Filter>
+    </ClCompile>
+    <ClCompile Include="utility\parallel.cpp">
+      <Filter>utility</Filter>
+    </ClCompile>
+    <ClCompile Include="utility\transform.cpp">
+      <Filter>utility</Filter>
+    </ClCompile>
+    <ClCompile Include="utility\quaternion.cpp">
+      <Filter>utility</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="utility\fileutil.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\floatfile.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="handwork.h" />
+    <ClInclude Include="utility\geometry.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\memory.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\parallel.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\rng.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\transform.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\quaternion.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\stringprint.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\interval.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
