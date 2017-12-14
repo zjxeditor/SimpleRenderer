@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../handwork.h"
+#include "utility.h"
 #include <mutex>
 #include <condition_variable>
 #include <functional>
@@ -48,8 +48,8 @@ namespace handwork
 	class Barrier 
 	{
 	public:
-		Barrier(int count) : count(count) { }
-		~Barrier() { }
+		Barrier(int count) : count(count) { CHECK_GT(count, 0); }
+		~Barrier() { CHECK_EQ(count, 0); }
 		void Wait();
 
 	private:

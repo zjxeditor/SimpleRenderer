@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "../handwork.h"
+#include "utility.h"
 
 namespace handwork
 {
-	// Interval Definitions
 	class Interval
 	{
 	public:
@@ -23,12 +22,13 @@ namespace handwork
 				std::max(std::max(low * i.low, high * i.low),
 					std::max(low * i.high, high * i.high)));
 		}
-
 		float low, high;
 	};
 
 	inline Interval Sin(const Interval &i) 
 	{
+		CHECK_GE(i.low, 0);
+		CHECK_LE(i.high, 2.0001 * Pi);
 		float sinLow = std::sin(i.low), sinHigh = std::sin(i.high);
 		if (sinLow > sinHigh) std::swap(sinLow, sinHigh);
 		if (i.low < Pi / 2 && i.high > Pi / 2) sinHigh = 1.;
@@ -38,6 +38,8 @@ namespace handwork
 
 	inline Interval Cos(const Interval &i) 
 	{
+		CHECK_GE(i.low, 0);
+		CHECK_LE(i.high, 2.0001 * Pi);
 		float cosLow = std::cos(i.low), cosHigh = std::cos(i.high);
 		if (cosLow > cosHigh) std::swap(cosLow, cosHigh);
 		if (i.low < Pi && i.high > Pi) cosLow = -1.;

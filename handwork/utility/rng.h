@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../handwork.h"
+#include "utility.h"
 
 #define PCG32_DEFAULT_STATE 0x853c49e6748fea9bULL
 #define PCG32_DEFAULT_STREAM 0xda3e39cb94b95bdbULL
@@ -61,15 +61,17 @@ namespace handwork
 		}
 		int64_t operator-(const RNG &other) const 
 		{
+			CHECK_EQ(inc, other.inc);
 			uint64_t cur_mult = PCG32_MULT, cur_plus = inc, cur_state = other.state,
 				the_bit = 1u, distance = 0u;
 			while (state != cur_state) 
 			{
-				if ((state & the_bit) != (cur_state & the_bit)) 
+				if ((state & the_bit) != (cur_state & the_bit))
 				{
 					cur_state = cur_state * cur_mult + cur_plus;
 					distance |= the_bit;
 				}
+				CHECK_EQ(state & the_bit, cur_state & the_bit);
 				the_bit <<= 1;
 				cur_plus = (cur_mult + 1ULL) * cur_plus;
 				cur_mult *= cur_mult;

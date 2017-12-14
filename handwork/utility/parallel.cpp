@@ -32,14 +32,11 @@ namespace handwork
 		ParallelForLoop(std::function<void(int64_t)> func1D, int64_t maxIndex, int chunkSize)
 			: func1D(std::move(func1D)),
 			maxIndex(maxIndex),
-			chunkSize(chunkSize) { }
+			chunkSize(chunkSize) {}
 		ParallelForLoop(const std::function<void(Vector2i)> &f, const Vector2i &count)
 			: func2D(f),
 			maxIndex(count.x * count.y),
-			chunkSize(1)
-		{
-			nX = count.x;
-		}
+			chunkSize(1) { nX = count.x; }
 
 	public:
 		// ParallelForLoop Private Data
@@ -53,15 +50,13 @@ namespace handwork
 		int nX = -1;
 
 		// ParallelForLoop Private Methods
-		bool Finished() const 
-		{
-			return nextIndex >= maxIndex && activeWorkers == 0;
-		}
+		bool Finished() const { return nextIndex >= maxIndex && activeWorkers == 0;	}
 	};
 
 	void Barrier::Wait() 
 	{
 		std::unique_lock<std::mutex> lock(mutex);
+		CHECK_GT(count, 0);
 		if (--count == 0)
 			// This is the last thread to reach the barrier; wake up all of the
 			// other ones before exiting.
@@ -76,7 +71,7 @@ namespace handwork
 
 	static void workerThreadFunc(int tIndex, std::shared_ptr<Barrier> barrier) 
 	{
-		std::cout << "Started execution in worker thread " << tIndex << std::endl;
+		LOG(INFO) << "Started execution in worker thread " << tIndex;
 		ThreadIndex = tIndex;
 
 		// The main thread sets up a barrier so that it can be sure that all
@@ -91,7 +86,7 @@ namespace handwork
 		std::unique_lock<std::mutex> lock(workListMutex);
 		while (!shutdownThreads) 
 		{
-			if (reportWorkerStats) 
+			if (reportWorkerStats)
 			{
 				if (--reporterCount == 0)
 					// Once all worker threads have merged their stats, wake up
@@ -100,7 +95,7 @@ namespace handwork
 				// Now sleep again.
 				workListCondition.wait(lock);
 			}
-			else if (!workList)
+			else if (!workList) 
 			{
 				// Sleep until there are more tasks to run
 				workListCondition.wait(lock);
@@ -114,7 +109,8 @@ namespace handwork
 
 				// Find the set of loop iterations to run next
 				int64_t indexStart = loop.nextIndex;
-				int64_t indexEnd = std::min(indexStart + loop.chunkSize, loop.maxIndex);
+				int64_t indexEnd =
+					std::min(indexStart + loop.chunkSize, loop.maxIndex);
 
 				// Update _loop_ to reflect iterations this thread will run
 				loop.nextIndex = indexEnd;
@@ -132,6 +128,7 @@ namespace handwork
 					// Handle other types of loops
 					else 
 					{
+						CHECK(loop.func2D);
 						loop.func2D(Vector2i(index % loop.nX, index / loop.nX));
 					}
 				}
@@ -142,12 +139,14 @@ namespace handwork
 				if (loop.Finished()) workListCondition.notify_all();
 			}
 		}
-		std::cout << "Exiting worker thread " << std::endl;
+		LOG(INFO) << "Exiting worker thread " << tIndex;
 	}
 
 	// Parallel Definitions
 	void ParallelFor(std::function<void(int64_t)> func, int64_t count, int chunkSize) 
 	{
+		CHECK(threads.size() > 0 || MaxThreadIndex() == 1);
+
 		// Run iterations immediately if not using threads or if _count_ is small
 		if (threads.empty() || count < chunkSize) 
 		{
@@ -167,7 +166,7 @@ namespace handwork
 		workListCondition.notify_all();
 
 		// Help out with parallel loop iterations in the current thread
-		while (!loop.Finished())
+		while (!loop.Finished()) 
 		{
 			// Run a chunk of loop iterations for _loop_
 
@@ -191,6 +190,7 @@ namespace handwork
 				// Handle other types of loops
 				else 
 				{
+					CHECK(loop.func2D);
 					loop.func2D(Vector2i(index % loop.nX, index / loop.nX));
 				}
 			}
@@ -208,9 +208,11 @@ namespace handwork
 		return NumSystemCores();
 	}
 
-	void ParallelFor2D(std::function<void(Vector2i)> func, const Vector2i &count) 
+	void ParallelFor2D(std::function<void(Vector2i)> func, const Vector2i &count)
 	{
-		if (threads.empty() || count.x * count.y <= 1) 
+		CHECK(threads.size() > 0 || MaxThreadIndex() == 1);
+
+		if (threads.empty() || count.x * count.y <= 1)
 		{
 			for (int y = 0; y < count.y; ++y)
 				for (int x = 0; x < count.x; ++x) func(Vector2i(x, y));
@@ -228,7 +230,7 @@ namespace handwork
 		workListCondition.notify_all();
 
 		// Help out with parallel loop iterations in the current thread
-		while (!loop.Finished())
+		while (!loop.Finished()) 
 		{
 			// Run a chunk of loop iterations for _loop_
 
@@ -243,7 +245,7 @@ namespace handwork
 
 			// Run loop indices in _[indexStart, indexEnd)_
 			lock.unlock();
-			for (int64_t index = indexStart; index < indexEnd; ++index) 
+			for (int64_t index = indexStart; index < indexEnd; ++index)
 			{
 				if (loop.func1D) 
 				{
@@ -252,6 +254,7 @@ namespace handwork
 				// Handle other types of loops
 				else 
 				{
+					CHECK(loop.func2D);
 					loop.func2D(Vector2i(index % loop.nX, index / loop.nX));
 				}
 			}
@@ -269,6 +272,7 @@ namespace handwork
 
 	void ParallelInit() 
 	{
+		CHECK_EQ(threads.size(), 0);
 		int nThreads = MaxThreadIndex();
 		ThreadIndex = 0;
 

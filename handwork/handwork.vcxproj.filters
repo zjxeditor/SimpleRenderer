@@ -28,6 +28,12 @@
     <ClCompile Include="utility\quaternion.cpp">
       <Filter>utility</Filter>
     </ClCompile>
+    <ClCompile Include="mesh\fbxloader.cpp">
+      <Filter>mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="utility\error.cpp">
+      <Filter>utility</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utility\fileutil.h">
@@ -36,7 +42,6 @@
     <ClInclude Include="utility\floatfile.h">
       <Filter>utility</Filter>
     </ClInclude>
-    <ClInclude Include="handwork.h" />
     <ClInclude Include="utility\geometry.h">
       <Filter>utility</Filter>
     </ClInclude>
@@ -59,6 +64,15 @@
       <Filter>utility</Filter>
     </ClInclude>
     <ClInclude Include="utility\interval.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="mesh\fbxloader.h">
+      <Filter>mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\utility.h">
+      <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="utility\error.h">
       <Filter>utility</Filter>
     </ClInclude>
   </ItemGroup>

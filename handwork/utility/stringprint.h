@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../handwork.h"
+#include "utility.h"
 #include <stdio.h>
 #include <string>
 #include <string.h>
@@ -15,10 +15,11 @@ namespace handwork
 		const char *c = fmt;
 		// No args left; make sure there aren't any extra formatting
 		// specifiers.
-		while (*c) 
+		while (*c)
 		{
 			if (*c == '%') 
 			{
+				CHECK_EQ(c[1], '%');
 				++c;
 			}
 			*s += *c++;
@@ -28,12 +29,12 @@ namespace handwork
 	// 1. Copy from fmt to *s, up to the next formatting directive.
 	// 2. Advance fmt past the next formatting directive and return the
 	//    formatting directive as a string.
-	inline std::string copyToFormatString(const char **fmt_ptr, std::string *s)
+	inline std::string copyToFormatString(const char **fmt_ptr, std::string *s) 
 	{
 		const char *&fmt = *fmt_ptr;
 		while (*fmt) 
 		{
-			if (*fmt != '%')
+			if (*fmt != '%') 
 			{
 				*s += *fmt;
 				++fmt;
@@ -60,8 +61,7 @@ namespace handwork
 				// Incomplete (but good enough?) test for the end of the
 				// formatting directive: a new formatting directive starts, we
 				// hit whitespace, or we hit a comma.
-			} 
-			while (*fmt && *fmt != '%' && !isspace(*fmt) && *fmt != ',' &&
+			} while (*fmt && *fmt != '%' && !isspace(*fmt) && *fmt != ',' &&
 				*fmt != '[' && *fmt != ']' && *fmt != '(' && *fmt != ')');
 		}
 
@@ -85,7 +85,7 @@ namespace handwork
 	// output for a single StringPrintf() argument to the final result string
 	// in *s.
 	template <typename T, typename... Args>
-	inline void stringPrintfRecursive(std::string *s, const char *fmt, T v, Args... args) 
+	inline void stringPrintfRecursive(std::string *s, const char *fmt, T v,	Args... args) 
 	{
 		std::string nextFmt = copyToFormatString(&fmt, s);
 		*s += formatOne(nextFmt.c_str(), v);

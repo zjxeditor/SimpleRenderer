@@ -6,12 +6,12 @@
 
 namespace handwork
 {
-	bool ReadFloatFile(const char *filename, std::vector<float> *values)
+	bool ReadFloatFile(const char *filename, std::vector<float> *values) 
 	{
 		FILE *f = fopen(filename, "r");
 		if (!f) 
 		{
-			std::cout << "Error: unable to open file " << filename << std::endl;
+			Error("Unable to open file \"%s\"", filename);
 			return false;
 		}
 
@@ -25,10 +25,9 @@ namespace handwork
 			if (c == '\n') ++lineNumber;
 			if (inNumber) 
 			{
-				if(curNumberPos >= (int)sizeof(curNumber))
-				{
-					std::cout << "Overflowed buffer for parsing number in file: " << filename << ", at line " << lineNumber << std::endl;
-				}
+				CHECK_LT(curNumberPos, (int)sizeof(curNumber))
+					<< "Overflowed buffer for parsing number in file: " << filename
+					<< ", at line " << lineNumber;
 				if (isdigit(c) || c == '.' || c == 'e' || c == '-' || c == '+')
 					curNumber[curNumberPos++] = c;
 				else 
@@ -48,12 +47,14 @@ namespace handwork
 				}
 				else if (c == '#') 
 				{
-					while ((c = getc(f)) != '\n' && c != EOF) { }
+					while ((c = getc(f)) != '\n' && c != EOF)
+						;
 					++lineNumber;
 				}
 				else if (!isspace(c)) 
 				{
-					std::cout << "Warning: unexpected text found at line " << lineNumber << " of float file " << filename << std::endl;
+					Warning("Unexpected text found at line %d of float file \"%s\"",
+						lineNumber, filename);
 				}
 			}
 		}

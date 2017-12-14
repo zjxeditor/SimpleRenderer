@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../handwork.h"
+#include "utility.h"
 #include <list>
 #include <cstddef>
 
@@ -19,9 +19,8 @@ namespace handwork
 	}
 	void FreeAligned(void *);
 
-	class
-		alignas(HANDWORK_L1_CACHE_LINE_SIZE)
-		MemoryArena {
+	class alignas(HANDWORK_L1_CACHE_LINE_SIZE) MemoryArena 
+	{
 	public:
 		// MemoryArena Public Methods
 		MemoryArena(size_t blockSize = 262144) : blockSize(blockSize) {}
@@ -51,10 +50,9 @@ namespace handwork
 				// Get new block of memory for _MemoryArena_
 
 				// Try to get memory block from _availableBlocks_
-				for (auto iter = availableBlocks.begin();
-					iter != availableBlocks.end(); ++iter) 
+				for (auto iter = availableBlocks.begin(); iter != availableBlocks.end(); ++iter) 
 				{
-					if (iter->first >= nBytes) 
+					if (iter->first >= nBytes)
 					{
 						currentAllocSize = iter->first;
 						currentBlock = iter->second;
@@ -120,7 +118,7 @@ namespace handwork
 					for (int u = 0; u < uRes; ++u) (*this)(u, v) = d[v * uRes + u];
 		}
 		constexpr int BlockSize() const { return 1 << logBlockSize; }
-		int RoundUp(int x) const 
+		int RoundUp(int x) const
 		{
 			return (x + BlockSize() - 1) & ~(BlockSize() - 1);
 		}
@@ -133,7 +131,7 @@ namespace handwork
 		}
 		int Block(int a) const { return a >> logBlockSize; }
 		int Offset(int a) const { return (a & (BlockSize() - 1)); }
-		T &operator()(int u, int v) 
+		T &operator()(int u, int v)
 		{
 			int bu = Block(u), bv = Block(v);
 			int ou = Offset(u), ov = Offset(v);

@@ -5,16 +5,6 @@
 namespace handwork
 {
 	// Matrix4x4 Method Definitions
-	bool SolveLinearSystem2x2(const float A[2][2], const float B[2], float *x0, float *x1) 
-	{
-		float det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
-		if (std::abs(det) < 1e-10f) return false;
-		*x0 = (A[1][1] * B[0] - A[0][1] * B[1]) / det;
-		*x1 = (A[0][0] * B[1] - A[1][0] * B[0]) / det;
-		if (std::isnan(*x0) || std::isnan(*x1)) return false;
-		return true;
-	}
-
 	Matrix4x4::Matrix4x4(float mat[4][4]) { memcpy(m, mat, 16 * sizeof(float)); }
 
 	Matrix4x4::Matrix4x4(float t00, float t01, float t02, float t03, float t10,
@@ -65,9 +55,9 @@ namespace handwork
 				{
 					for (int k = 0; k < 4; k++) 
 					{
-						if (ipiv[k] == 0)
+						if (ipiv[k] == 0) 
 						{
-							if (std::abs(minv[j][k]) >= big)
+							if (std::abs(minv[j][k]) >= big) 
 							{
 								big = float(std::abs(minv[j][k]));
 								irow = j;
@@ -75,7 +65,7 @@ namespace handwork
 							}
 						}
 						else if (ipiv[k] > 1)
-							std::cout << "Singular matrix in MatrixInvert" << std::endl;
+							Error("Singular matrix in MatrixInvert");
 					}
 				}
 			}
@@ -87,8 +77,7 @@ namespace handwork
 			}
 			indxr[i] = irow;
 			indxc[i] = icol;
-			if (minv[icol][icol] == 0.f)
-				std::cout << "Singular matrix in MatrixInvert" << std::endl;
+			if (minv[icol][icol] == 0.f) Error("Singular matrix in MatrixInvert");
 
 			// Set $m[icol][icol]$ to one by scaling row _icol_ appropriately
 			float pivinv = 1. / minv[icol][icol];
@@ -109,7 +98,7 @@ namespace handwork
 		// Swap columns to reflect permutation
 		for (int j = 3; j >= 0; j--) 
 		{
-			if (indxr[j] != indxc[j]) 
+			if (indxr[j] != indxc[j])
 			{
 				for (int k = 0; k < 4; k++)
 					std::swap(minv[k][indxr[j]], minv[k][indxc[j]]);
@@ -139,7 +128,8 @@ namespace handwork
 	{
 		float sinTheta = std::sin(Radians(theta));
 		float cosTheta = std::cos(Radians(theta));
-		Matrix4x4 m(1, 0, 0, 0, 0, cosTheta, -sinTheta, 0, 0, sinTheta, cosTheta, 0, 0, 0, 0, 1);
+		Matrix4x4 m(1, 0, 0, 0, 0, cosTheta, -sinTheta, 0, 0, sinTheta, cosTheta, 0,
+			0, 0, 0, 1);
 		return Transform(m, Transpose(m));
 	}
 
@@ -147,7 +137,8 @@ namespace handwork
 	{
 		float sinTheta = std::sin(Radians(theta));
 		float cosTheta = std::cos(Radians(theta));
-		Matrix4x4 m(cosTheta, 0, sinTheta, 0, 0, 1, 0, 0, -sinTheta, 0, cosTheta, 0, 0, 0, 0, 1);
+		Matrix4x4 m(cosTheta, 0, sinTheta, 0, 0, 1, 0, 0, -sinTheta, 0, cosTheta, 0,
+			0, 0, 0, 1);
 		return Transform(m, Transpose(m));
 	}
 
@@ -155,7 +146,8 @@ namespace handwork
 	{
 		float sinTheta = std::sin(Radians(theta));
 		float cosTheta = std::cos(Radians(theta));
-		Matrix4x4 m(cosTheta, -sinTheta, 0, 0, sinTheta, cosTheta, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1);
+		Matrix4x4 m(cosTheta, -sinTheta, 0, 0, sinTheta, cosTheta, 0, 0, 0, 0, 1, 0,
+			0, 0, 0, 1);
 		return Transform(m, Transpose(m));
 	}
 
@@ -197,10 +189,9 @@ namespace handwork
 		Vector3f dir = Normalize(look - pos);
 		if (Cross(Normalize(up), dir).Length() == 0) 
 		{
-			std::cout << StringPrintf("\"up\" vector (%f, %f, %f) and viewing direction (%f, %f, %f) "
+			Error("\"up\" vector (%f, %f, %f) and viewing direction (%f, %f, %f) "
 				"passed to LookAt are pointing in the same direction.  Using "
-				"the identity transformation.",
-				up.x, up.y, up.z, dir.x, dir.y, dir.z) << std::endl;
+				"the identity transformation.", up.x, up.y, up.z, dir.x, dir.y, dir.z);
 			return Transform();
 		}
 		Vector3f left = Normalize(Cross(Normalize(up), dir));
@@ -218,6 +209,16 @@ namespace handwork
 		cameraToWorld.m[2][2] = dir.z;
 		cameraToWorld.m[3][2] = 0.;
 		return Transform(Inverse(cameraToWorld), cameraToWorld);
+	}
+
+	bool SolveLinearSystem2x2(const float A[2][2], const float B[2], float *x0, float *x1)
+	{
+		float det = A[0][0] * A[1][1] - A[0][1] * A[1][0];
+		if (std::abs(det) < 1e-10f) return false;
+		*x0 = (A[1][1] * B[0] - A[0][1] * B[1]) / det;
+		*x1 = (A[0][0] * B[1] - A[1][0] * B[0]) / det;
+		if (std::isnan(*x0) || std::isnan(*x1)) return false;
+		return true;
 	}
 
 	Transform Transform::operator*(const Transform &t2) const 

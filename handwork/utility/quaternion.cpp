@@ -27,7 +27,7 @@ namespace handwork
 		return Transform(Transpose(m), m);
 	}
 
-	Quaternion::Quaternion(const Transform &t) 
+	Quaternion::Quaternion(const Transform &t)
 	{
 		const Matrix4x4 &m = t.m;
 		float trace = m.m[0][0] + m.m[1][1] + m.m[2][2];
@@ -42,7 +42,7 @@ namespace handwork
 			v.y = (m.m[0][2] - m.m[2][0]) * s;
 			v.z = (m.m[1][0] - m.m[0][1]) * s;
 		}
-		else
+		else 
 		{
 			// Compute largest of $x$, $y$, or $z$, then remaining components
 			const int nxt[3] = { 1, 2, 0 };
@@ -64,12 +64,13 @@ namespace handwork
 		}
 	}
 
-	Quaternion Slerp(float t, const Quaternion &q1, const Quaternion &q2) 
+	Quaternion Slerp(float t, const Quaternion &q1, const Quaternion &q2)
 	{
 		float cosTheta = Dot(q1, q2);
 		if (cosTheta > .9995f)
 			return Normalize((1 - t) * q1 + t * q2);
-		else {
+		else 
+		{
 			float theta = std::acos(Clamp(cosTheta, -1, 1));
 			float thetap = theta * t;
 			Quaternion qperp = Normalize(q2 - q1 * cosTheta);

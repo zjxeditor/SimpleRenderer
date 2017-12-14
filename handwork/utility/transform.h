@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "../handwork.h"
+#include "utility.h"
 #include "stringprint.h"
 #include "geometry.h"
 #include "quaternion.h"
@@ -41,7 +41,7 @@ namespace handwork
 		void Print(FILE *f) const 
 		{
 			fprintf(f, "[ ");
-			for (int i = 0; i < 4; ++i) 
+			for (int i = 0; i < 4; ++i)
 			{
 				fprintf(f, "  [ ");
 				for (int j = 0; j < 4; ++j) 
@@ -66,6 +66,7 @@ namespace handwork
 
 		friend std::ostream &operator<<(std::ostream &os, const Matrix4x4 &m) 
 		{
+			// clang-format off
 			os << StringPrintf("[ [ %f, %f, %f, %f ] "
 				"[ %f, %f, %f, %f ] "
 				"[ %f, %f, %f, %f ] "
@@ -87,7 +88,7 @@ namespace handwork
 	public:
 		// Transform Public Methods
 		Transform() {}
-		Transform(const float mat[4][4])
+		Transform(const float mat[4][4]) 
 		{
 			m = Matrix4x4(mat[0][0], mat[0][1], mat[0][2], mat[0][3], mat[1][0],
 				mat[1][1], mat[1][2], mat[1][3], mat[2][0], mat[2][1],
@@ -100,8 +101,8 @@ namespace handwork
 		void Print(FILE *f) const;
 		friend Transform Inverse(const Transform &t) { return Transform(t.mInv, t.m); }
 		friend Transform Transpose(const Transform &t) { return Transform(Transpose(t.m), Transpose(t.mInv)); }
-		bool operator==(const Transform &t) const {	return t.m == m && t.mInv == mInv; }
-		bool operator!=(const Transform &t) const {	return t.m != m || t.mInv != mInv; }
+		bool operator==(const Transform &t) const { return t.m == m && t.mInv == mInv; }
+		bool operator!=(const Transform &t) const { return t.m != m || t.mInv != mInv; }
 		bool operator<(const Transform &t2) const 
 		{
 			for (int i = 0; i < 4; ++i)
@@ -123,7 +124,7 @@ namespace handwork
 		}
 		const Matrix4x4 &GetMatrix() const { return m; }
 		const Matrix4x4 &GetInverseMatrix() const { return mInv; }
-		bool HasScale() const 
+		bool HasScale() const
 		{
 			float la2 = (*this)(Vector3f(1, 0, 0)).LengthSquared();
 			float lb2 = (*this)(Vector3f(0, 1, 0)).LengthSquared();
@@ -132,9 +133,9 @@ namespace handwork
 			return (NOT_ONE(la2) || NOT_ONE(lb2) || NOT_ONE(lc2));
 #undef NOT_ONE
 		}
-		
+
 		template <typename T>
-		inline Vector3<T> operator()(const Vector3<T> &v, bool point = false) const;
+		inline Vector3<T> operator()(const Vector3<T> &v, VectorType type = VectorType::Vector) const;
 		Transform operator*(const Transform &t2) const;
 		bool SwapsHandedness() const;
 		
@@ -160,30 +161,39 @@ namespace handwork
 	Transform LookAt(const Vector3f &pos, const Vector3f &look, const Vector3f &up);
 	Transform Orthographic(float znear, float zfar);
 	Transform Perspective(float fov, float znear, float zfar);
-	bool SolveLinearSystem2x2(const float A[2][2], const float B[2], float *x0,	float *x1);
+	bool SolveLinearSystem2x2(const float A[2][2], const float B[2], float *x0, float *x1);
 
 	// Transform Inline Functions
 	template <typename T>
-	inline Vector3<T> Transform::operator()(const Vector3<T> &v, bool point) const
+	inline Vector3<T> Transform::operator()(const Vector3<T> &v, VectorType type) const
 	{
-		if(point)
+		T x = v.x, y = v.y, z = v.z;
+		switch (type)
 		{
-			T x = v.x, y = v.y, z = v.z;
+		case VectorType::Vector:
+			{
+			return Vector3<T>(m.m[0][0] * x + m.m[0][1] * y + m.m[0][2] * z,
+				m.m[1][0] * x + m.m[1][1] * y + m.m[1][2] * z,
+				m.m[2][0] * x + m.m[2][1] * y + m.m[2][2] * z);
+			}
+		case VectorType::Point:
+			{
 			T xp = m.m[0][0] * x + m.m[0][1] * y + m.m[0][2] * z + m.m[0][3];
 			T yp = m.m[1][0] * x + m.m[1][1] * y + m.m[1][2] * z + m.m[1][3];
 			T zp = m.m[2][0] * x + m.m[2][1] * y + m.m[2][2] * z + m.m[2][3];
 			T wp = m.m[3][0] * x + m.m[3][1] * y + m.m[3][2] * z + m.m[3][3];
+			CHECK_NE(wp, 0);
 			if (wp == 1)
 				return Vector3<T>(xp, yp, zp);
 			else
 				return Vector3<T>(xp, yp, zp) / wp;
-		}
-		else
-		{
-			T x = v.x, y = v.y, z = v.z;
-			return Vector3<T>(m.m[0][0] * x + m.m[0][1] * y + m.m[0][2] * z,
-				m.m[1][0] * x + m.m[1][1] * y + m.m[1][2] * z,
-				m.m[2][0] * x + m.m[2][1] * y + m.m[2][2] * z);
+			}
+		case VectorType::Normal:
+			{
+			return Vector3<T>(mInv.m[0][0] * x + mInv.m[1][0] * y + mInv.m[2][0] * z,
+				mInv.m[0][1] * x + mInv.m[1][1] * y + mInv.m[2][1] * z,
+				mInv.m[0][2] * x + mInv.m[1][2] * y + mInv.m[2][2] * z);
+			}
 		}
 	}
 
