@@ -23,7 +23,7 @@ namespace handwork
 
 	struct MeshVI
 	{
-		std::vector<Vertex> Vertices;
+		std::vector<MeshVertex> Vertices;
 		std::vector<int> Indices;
 	};
 
@@ -60,21 +60,21 @@ namespace handwork
 	void ProcessSkeletonEliminationRecursively(FbxNode* node, std::vector<JointInfo>& skeletonInfo);
 	void ProcessNode(FbxNode* node, std::vector<JointInfo>& skeletonInfo, std::vector<MeshVI*>& meshVICache);
 	void ProcessMesh(FbxNode* node, std::vector<JointInfo>& skeletonInfo, std::vector<MeshVI*>& meshVICache);
-	void ProcessJoints(FbxNode* node, std::vector<Vertex>& vertices, std::vector<JointInfo>& skeletonInfo);
-	void PackVI(std::vector<MeshVI*>& meshVICache, std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices);
-	void ReadPosition(FbxMesh* mesh, std::vector<Vertex>& vertices);
+	void ProcessJoints(FbxNode* node, std::vector<MeshVertex>& vertices, std::vector<JointInfo>& skeletonInfo);
+	void PackVI(std::vector<MeshVI*>& meshVICache, std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices);
+	void ReadPosition(FbxMesh* mesh, std::vector<MeshVertex>& vertices);
 	void ReadIndex(FbxMesh* mesh, std::vector<int>& indices);
-	void ReadNormal(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate = true);
-	void ReadTangent(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate = true);
+	void ReadNormal(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate = true);
+	void ReadTangent(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate = true);
 
-	bool ImportFbx(const std::string& filename, float& fileScale, std::vector<Joint>& skeleton,
-		std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices)
+	bool ImportFbx(const std::string& filename, float& fileScale, std::vector<MeshJoint>& skeleton,
+		std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices)
 	{
 		return ImportFbx(filename.c_str(), fileScale, skeleton, meshVertices, meshIndices);
 	}
 
-	bool ImportFbx(const char* filename, float& fileScale, std::vector<Joint>& skeleton,
-		std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices)
+	bool ImportFbx(const char* filename, float& fileScale, std::vector<MeshJoint>& skeleton,
+		std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices)
 	{
 		skeleton.clear();
 		meshVertices.clear();
@@ -380,7 +380,7 @@ namespace handwork
 		meshVICache.push_back(currentVI);
 	}
 
-	void ProcessJoints(FbxNode* node, std::vector<Vertex>& vertices, std::vector<JointInfo>& skeletonInfo)
+	void ProcessJoints(FbxNode* node, std::vector<MeshVertex>& vertices, std::vector<JointInfo>& skeletonInfo)
 	{
 		FbxMesh* mesh = node->GetMesh();
 		int deformerNum = mesh->GetDeformerCount();
@@ -426,7 +426,7 @@ namespace handwork
 				int* indices = cluster->GetControlPointIndices();
 				for (int i = 0; i < indexNum; ++i)
 				{
-					BlendPair blendPair;
+					MeshBlendPair blendPair;
 					blendPair.Index = jointIndex;
 					blendPair.Weight = (float)weights[i];
 					vertices[indices[i]].BlendInfo.push_back(blendPair);
@@ -435,7 +435,7 @@ namespace handwork
 		}
 	}
 
-	void PackVI(std::vector<MeshVI*>& meshVICache, std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices)
+	void PackVI(std::vector<MeshVI*>& meshVICache, std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices)
 	{
 		int meshNum = (int)meshVICache.size();
 		if (meshNum == 0)
@@ -457,7 +457,7 @@ namespace handwork
 		}
 	}
 
-	void ReadPosition(FbxMesh* mesh, std::vector<Vertex>& vertices)
+	void ReadPosition(FbxMesh* mesh, std::vector<MeshVertex>& vertices)
 	{
 		FbxVector4* pCtrlPoint = mesh->GetControlPoints();
 		int controlPointsCount = mesh->GetControlPointsCount();
@@ -482,7 +482,7 @@ namespace handwork
 			}
 	}
 
-	void ReadNormal(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate)
+	void ReadNormal(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate)
 	{
 		if (mesh->GetElementNormalCount() < 1)
 		{
@@ -566,7 +566,7 @@ namespace handwork
 		}
 	}
 
-	void ReadTangent(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate)
+	void ReadTangent(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate)
 	{
 		if (mesh->GetElementTangentCount() < 1)
 		{

@@ -20,6 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="mesh\fbxloader.cpp" />
+    <ClCompile Include="mesh\meshtopology.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="utility\error.cpp" />
     <ClCompile Include="utility\fileutil.cpp" />
@@ -31,6 +32,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mesh\fbxloader.h" />
+    <ClInclude Include="mesh\meshtopology.h" />
     <ClInclude Include="utility\error.h" />
     <ClInclude Include="utility\fileutil.h" />
     <ClInclude Include="utility\floatfile.h" />

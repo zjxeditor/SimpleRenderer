@@ -8,10 +8,10 @@
 
 namespace handwork
 {
-	struct Joint
+	struct MeshJoint
 	{
-		Joint() : Parent(-1) {}
-		Joint(std::string name, int parent, Matrix4x4 m)
+		MeshJoint() : Parent(-1) {}
+		MeshJoint(std::string name, int parent, Matrix4x4 m)
 			: Name(name), Parent(parent), GlobalBindposeInverse(m) {}
 
 		std::string Name;
@@ -22,19 +22,19 @@ namespace handwork
 		Vector3f Rotation;		// Local 3 axis rotation in degree
 	};
 
-	struct BlendPair
+	struct MeshBlendPair
 	{
-		BlendPair() : Index(-1), Weight(-1.0f) {}
-		BlendPair(int index, float weight) 
+		MeshBlendPair() : Index(-1), Weight(-1.0f) {}
+		MeshBlendPair(int index, float weight) 
 			: Index(index), Weight(weight) {}
 
 		int Index;
 		float Weight;
 	};
 
-	struct Vertex
+	struct MeshVertex
 	{
-		Vertex() : Position(0, 0, 0), Normal(0, 0, 0), Tangent(0, 0, 0)
+		MeshVertex() : Position(0, 0, 0), Normal(0, 0, 0), Tangent(0, 0, 0)
 		{
 			BlendInfo.reserve(4);
 		}
@@ -42,14 +42,14 @@ namespace handwork
 		Vector3f Position;
 		Vector3f Normal;
 		Vector3f Tangent;
-		std::vector<BlendPair> BlendInfo;
+		std::vector<MeshBlendPair> BlendInfo;
 	};
 
-	bool ImportFbx(const char* filename, float& fileScale, std::vector<Joint>& skeleton,
-		std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices);
+	bool ImportFbx(const char* filename, float& fileScale, std::vector<MeshJoint>& skeleton,
+		std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices);
 
-	bool ImportFbx(const std::string& filename, float& fileScale, std::vector<Joint>& skeleton,
-		std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices);
+	bool ImportFbx(const std::string& filename, float& fileScale, std::vector<MeshJoint>& skeleton,
+		std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices);
 		
 }	// namespace dhandwork
 

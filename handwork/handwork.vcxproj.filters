@@ -34,6 +34,9 @@
     <ClCompile Include="utility\error.cpp">
       <Filter>utility</Filter>
     </ClCompile>
+    <ClCompile Include="mesh\meshtopology.cpp">
+      <Filter>mesh</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utility\fileutil.h">
@@ -74,6 +77,9 @@
     </ClInclude>
     <ClInclude Include="utility\error.h">
       <Filter>utility</Filter>
+    </ClInclude>
+    <ClInclude Include="mesh\meshtopology.h">
+      <Filter>mesh</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
