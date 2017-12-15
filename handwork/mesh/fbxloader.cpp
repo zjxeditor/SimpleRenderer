@@ -1,13 +1,85 @@
 // Fbx file importer.
 
 #include "fbxloader.h"
+#include "fbxsdk.h"
 
 namespace handwork
 {
-	void PrintNode(FbxNode* pNode);
-
-	bool FbxLoader::ImportFile(const char* filename)
+	// Struct declaration
+	struct JointInfo
 	{
+		JointInfo() : Valid(false)
+		{}
+
+		std::string Name;
+		int Parent;
+		Matrix4x4 GlobalBindposeInverse;
+		FbxCluster* Cluster;
+		bool Valid;
+		Vector3f Translation;
+		Vector3f Scaling;
+		Vector3f Rotation;
+	};
+
+	struct MeshVI
+	{
+		std::vector<Vertex> Vertices;
+		std::vector<int> Indices;
+	};
+
+	// Helper methods
+	Matrix4x4 ConvertToMatrix4X4(const FbxAMatrix& tf)
+	{
+		auto tranforms = Matrix4x4(
+			(float)tf[0][0], (float)tf[0][1], (float)tf[0][2], (float)tf[0][3],
+			(float)tf[1][0], (float)tf[1][1], (float)tf[1][2], (float)tf[1][3],
+			(float)tf[2][0], (float)tf[2][1], (float)tf[2][2], (float)tf[2][3],
+			(float)tf[3][0], (float)tf[3][1], (float)tf[3][2], (float)tf[3][3]);
+		return tranforms;
+	}
+
+	Vector3f ConvertToVector3f(const FbxDouble3& v)
+	{
+		return Vector3f((float)v[0], (float)v[1], (float)v[2]);
+	}
+
+	int FindJoint(const std::string& name, const std::vector<JointInfo>& skeletonInfo)
+	{
+		for (size_t i = 0; i < skeletonInfo.size(); ++i)
+		{
+			if (skeletonInfo[i].Name == name)
+				return i;
+		}
+		return -1;
+	}
+
+	// Method pre-declaration
+	void BakeTRS(FbxNode* rootNode);
+	void BakeConfigure(FbxNode* node);
+	void ProcessSkeletonHierarchyRecursively(FbxNode* node, int myIndex, int inParentIndex, std::vector<JointInfo>& skeletonInfo);
+	void ProcessSkeletonEliminationRecursively(FbxNode* node, std::vector<JointInfo>& skeletonInfo);
+	void ProcessNode(FbxNode* node, std::vector<JointInfo>& skeletonInfo, std::vector<MeshVI*>& meshVICache);
+	void ProcessMesh(FbxNode* node, std::vector<JointInfo>& skeletonInfo, std::vector<MeshVI*>& meshVICache);
+	void ProcessJoints(FbxNode* node, std::vector<Vertex>& vertices, std::vector<JointInfo>& skeletonInfo);
+	void PackVI(std::vector<MeshVI*>& meshVICache, std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices);
+	void ReadPosition(FbxMesh* mesh, std::vector<Vertex>& vertices);
+	void ReadIndex(FbxMesh* mesh, std::vector<int>& indices);
+	void ReadNormal(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate = true);
+	void ReadTangent(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate = true);
+
+	bool ImportFbx(const std::string& filename, float& fileScale, std::vector<Joint>& skeleton,
+		std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices)
+	{
+		return ImportFbx(filename.c_str(), fileScale, skeleton, meshVertices, meshIndices);
+	}
+
+	bool ImportFbx(const char* filename, float& fileScale, std::vector<Joint>& skeleton,
+		std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices)
+	{
+		skeleton.clear();
+		meshVertices.clear();
+		meshIndices.clear();
+
 		// Initialize the SDK manager. This object handles memory management.
 		FbxManager* sdkManager = FbxManager::Create();
 
@@ -60,37 +132,97 @@ namespace handwork
 		
 		// Read data
 		FbxNode* rootNode = scene->GetRootNode();
-		if(rootNode)
+		if(!rootNode)
 		{
-			BakeTRS(rootNode);
-			ProcessSkeletonHierarchy(rootNode);
-			ProcessSkeletonElimination(rootNode);
-			LOG(INFO) << StringPrintf("Read joint number %d", Skeleton.size());
-
-
-
+			Error("Invalid fbx file: %s", filename);
+			sdkManager->Destroy();
+			return false;
 		}
 
+		// Bake fbx data.
+		BakeTRS(rootNode);
+
+		// Process skeleton hierarchy.
+		std::vector<JointInfo> skeletonInfo;
+		for (int childIndex = 0; childIndex < rootNode->GetChildCount(); ++childIndex)
+		{
+			FbxNode* currNode = rootNode->GetChild(childIndex);
+			ProcessSkeletonHierarchyRecursively(currNode, 0, -1, skeletonInfo);
+		}
+
+		// Eliminate skeleton.
+		for (int childIndex = 0; childIndex < rootNode->GetChildCount(); ++childIndex)
+		{
+			FbxNode* currNode = rootNode->GetChild(childIndex);
+			ProcessSkeletonEliminationRecursively(currNode, skeletonInfo);
+		}
+		std::vector<int> newPos(skeletonInfo.size(), -1);
+		std::vector<JointInfo> temp;
+		for (int i = 0; i < (int)skeletonInfo.size(); ++i)
+		{
+			auto& item = skeletonInfo[i];
+			if (item.Parent >= 0 && !skeletonInfo[item.Parent].Valid)
+				item.Valid = false;
+			if (!item.Valid)
+				continue;
+
+			newPos[i] = temp.size();
+			if (item.Parent < 0)
+				temp.push_back(item);
+			else
+			{
+				item.Parent = newPos[item.Parent];
+				CHECK_GE(item.Parent, 0);
+				temp.push_back(item);
+			}
+		}
+		skeletonInfo.clear();
+		skeletonInfo = temp;
+
+		// Get joint translation, rotation and scale.
+		for(auto& item : skeletonInfo)
+		{
+			FbxNode* linkNode = item.Cluster->GetLink();
+			item.Translation = ConvertToVector3f(linkNode->LclTranslation.Get());
+			item.Rotation = ConvertToVector3f(linkNode->LclRotation.Get());
+			item.Scaling = ConvertToVector3f(linkNode->LclScaling.Get());
+		}
+
+		LOG(INFO) << StringPrintf("Read joint number %d", skeletonInfo.size());
+
+		// Process nodes
+		std::vector<MeshVI*> meshVICache;
+		for (int i = 0; i < rootNode->GetChildCount(); i++)
+			ProcessNode(rootNode->GetChild(i), skeletonInfo, meshVICache);
 		
 		// Destroy the SDK manager and all the other objects it was handling.
 		sdkManager->Destroy();
 
-		
+		// Pack mesh vertices and indices.
+		PackVI(meshVICache, meshVertices, meshIndices);
+
+		// Free memory
+		for (int i = 0; i < (int)meshVICache.size(); ++i)
+			delete meshVICache[i];
+		meshVICache.clear();
+
+		// Pack skeleton data
+		skeleton.resize(skeletonInfo.size());
+		for (int i = 0; i < (int)skeletonInfo.size(); ++i)
+		{
+			skeleton[i].Name = skeletonInfo[i].Name;
+			skeleton[i].Parent = skeletonInfo[i].Parent;
+			skeleton[i].GlobalBindposeInverse = skeletonInfo[i].GlobalBindposeInverse;
+			skeleton[i].Translation = skeletonInfo[i].Translation;
+			skeleton[i].Rotation = skeletonInfo[i].Rotation;
+			skeleton[i].Scaling = skeletonInfo[i].Scaling;
+		}
 		
 		return true;
 	}
 
-	int FbxLoader::FindJoint(std::string name)
-	{
-		for (size_t i = 0; i < Skeleton.size(); ++i)
-		{
-			if (Skeleton[i].Name == name)
-				return i;
-		}
-		return -1;
-	}
 
-	void FbxLoader::BakeTRS(FbxNode* rootNode)
+	void BakeTRS(FbxNode* rootNode)
 	{
 		if (!rootNode)
 			return;
@@ -106,7 +238,7 @@ namespace handwork
 		rootNode->ConvertPivotAnimationRecursive(nullptr, FbxNode::eDestinationPivot, 24.0);
 	}
 
-	void FbxLoader::BakeConfigure(FbxNode* node)
+	void BakeConfigure(FbxNode* node)
 	{
 		if (!node)
 			return;
@@ -148,52 +280,22 @@ namespace handwork
 			BakeConfigure(node->GetChild(i));
 	}
 
-	void FbxLoader::ProcessSkeletonHierarchy(FbxNode* rootNode)
-	{
-		for (int childIndex = 0; childIndex < rootNode->GetChildCount(); ++childIndex)
-		{
-			FbxNode* currNode = rootNode->GetChild(childIndex);
-			ProcessSkeletonHierarchyRecursively(currNode, 0, -1);
-		}
-	}
-
-	void FbxLoader::ProcessSkeletonHierarchyRecursively(FbxNode* node, int myIndex, int inParentIndex)
+	void ProcessSkeletonHierarchyRecursively(FbxNode* node, int myIndex, int inParentIndex, std::vector<JointInfo>& skeletonInfo)
 	{
 		if (node->GetNodeAttribute() && node->GetNodeAttribute()->GetAttributeType() && node->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton)
 		{
-			Joint currJoint;
+			JointInfo currJoint;
 			currJoint.Parent = inParentIndex;
 			currJoint.Name = node->GetName();
-			Skeleton.push_back(currJoint);
+			skeletonInfo.push_back(currJoint);
 		}
 		for (int i = 0; i < node->GetChildCount(); i++)
 		{
-			ProcessSkeletonHierarchyRecursively(node->GetChild(i), Skeleton.size(), myIndex);
+			ProcessSkeletonHierarchyRecursively(node->GetChild(i), skeletonInfo.size(), myIndex, skeletonInfo);
 		}
 	}
 
-	void FbxLoader::ProcessSkeletonElimination(FbxNode* rootNode)
-	{
-		for (int childIndex = 0; childIndex < rootNode->GetChildCount(); ++childIndex)
-		{
-			FbxNode* currNode = rootNode->GetChild(childIndex);
-			ProcessSkeletonEliminationRecursively(currNode);
-		}
-
-		std::vector<Joint> temp;
-		for (auto& item : Skeleton)
-		{
-			if(item.Parent >= 0 && !Skeleton[item.Parent].Valid)
-				item.Valid = false;
-
-			if (item.Valid)
-				temp.push_back(item);
-		}
-		Skeleton.clear();
-		Skeleton = temp;
-	}
-
-	void FbxLoader::ProcessSkeletonEliminationRecursively(FbxNode* node)
+	void ProcessSkeletonEliminationRecursively(FbxNode* node, std::vector<JointInfo>& skeletonInfo)
 	{
 		if (node->GetNodeAttribute() && node->GetNodeAttribute()->GetAttributeType() && node->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eMesh)
 		{
@@ -204,31 +306,346 @@ namespace handwork
 				// Only use skin deformer
 				FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
 				if (!skin)
-				{
 					continue;
-				}
 
 				int clusterNum = skin->GetClusterCount();
 				for (int clusterIndex = 0; clusterIndex < clusterNum; ++clusterIndex)
 				{
 					FbxCluster* cluster = skin->GetCluster(clusterIndex);
 					std::string jointName = cluster->GetLink()->GetName();
-					int jointIndex = FindJoint(jointName);
+					int jointIndex = FindJoint(jointName, skeletonInfo);
 					if (jointIndex < 0)
 					{
-						Warning("Joint name not found in skeleton in mesh %s", node->GetName());
+						Warning("JointInfo name not found in skeleton in mesh %s", node->GetName());
 						continue;
 					}
-					Skeleton[jointIndex].Valid = true;
+					skeletonInfo[jointIndex].Cluster = cluster;
+					skeletonInfo[jointIndex].Valid = true;
 				}
 			}
 		}
 		for (int i = 0; i < node->GetChildCount(); i++)
 		{
-			ProcessSkeletonEliminationRecursively(node->GetChild(i));
+			ProcessSkeletonEliminationRecursively(node->GetChild(i), skeletonInfo);
 		}
 	}
 
+	void ProcessNode(FbxNode* node, std::vector<JointInfo>& skeletonInfo, std::vector<MeshVI*>& meshVICache)
+	{
+		if (node->GetNodeAttribute())
+		{
+			switch (node->GetNodeAttribute()->GetAttributeType())
+			{
+			case FbxNodeAttribute::eMesh:
+				ProcessMesh(node, skeletonInfo, meshVICache);
+				break;
+			default:
+				break;
+			}
+		}
 
+		for (int i = 0; i < node->GetChildCount(); ++i)
+		{
+			ProcessNode(node->GetChild(i), skeletonInfo, meshVICache);
+		}
+	}
+
+	void ProcessMesh(FbxNode* node, std::vector<JointInfo>& skeletonInfo, std::vector<MeshVI*>& meshVICache)
+	{
+		FbxMesh* mesh = node->GetMesh();
+		if (mesh == nullptr)
+			return;
+
+		int controlPointsCount = mesh->GetControlPointsCount();
+		int triangleCount = mesh->GetPolygonCount();
+		if (triangleCount == 0 || controlPointsCount == 0)
+			return;
+
+		// Load material
+		MeshVI* currentVI = new MeshVI();
+		auto& vertices = currentVI->Vertices;
+		auto& indices = currentVI->Indices;
+		vertices.resize(controlPointsCount);
+		indices.reserve(triangleCount * 3);
+
+		// Read positions, indices, normals and tangents
+		ReadPosition(mesh, vertices);
+		ReadIndex(mesh, indices);
+		ReadNormal(mesh, vertices, true);
+		ReadTangent(mesh, vertices, true);
+		
+		// Process joint information
+		ProcessJoints(node, vertices, skeletonInfo);
+
+		meshVICache.push_back(currentVI);
+	}
+
+	void ProcessJoints(FbxNode* node, std::vector<Vertex>& vertices, std::vector<JointInfo>& skeletonInfo)
+	{
+		FbxMesh* mesh = node->GetMesh();
+		int deformerNum = mesh->GetDeformerCount();
+
+		for (int deformerIndex = 0; deformerIndex < deformerNum; ++deformerIndex)
+		{
+			// Only use skin deformer
+			FbxSkin* skin = reinterpret_cast<FbxSkin*>(mesh->GetDeformer(deformerIndex, FbxDeformer::eSkin));
+			if (!skin)
+				continue;
+
+			int clusterNum = skin->GetClusterCount();
+			for (int clusterIndex = 0; clusterIndex < clusterNum; ++clusterIndex)
+			{
+				FbxCluster* cluster = skin->GetCluster(clusterIndex);
+				std::string jointName = cluster->GetLink()->GetName();
+				int jointIndex = FindJoint(jointName, skeletonInfo);
+				if (jointIndex < 0)
+				{
+					Warning("Valid joint name not found in skeleton for mesh %s", node->GetName());
+					continue;
+				}
+				if (!skeletonInfo[jointIndex].Valid)
+					continue;
+
+				FbxAMatrix transformMatrix;
+				FbxAMatrix transformLinkMatrix;
+				FbxAMatrix globalBindposeInverseMatrix;
+
+				//transformMatrix = node->EvaluateGlobalTransform();
+				//transformLinkMatrix = cluster->GetLink()->EvaluateGlobalTransform();
+
+				cluster->GetTransformMatrix(transformMatrix);	// The transformation of the mesh at binding time
+				cluster->GetTransformLinkMatrix(transformLinkMatrix);	// The transformation of the cluster(joint) at binding time from joint space to world space
+				globalBindposeInverseMatrix = transformMatrix * transformLinkMatrix.Inverse();
+
+				// Update the information in mSkeleton 
+				skeletonInfo[jointIndex].GlobalBindposeInverse = ConvertToMatrix4X4(globalBindposeInverseMatrix);
+
+				// Associate each joint with the control points it affects
+				int indexNum = cluster->GetControlPointIndicesCount();
+				double* weights = cluster->GetControlPointWeights();
+				int* indices = cluster->GetControlPointIndices();
+				for (int i = 0; i < indexNum; ++i)
+				{
+					BlendPair blendPair;
+					blendPair.Index = jointIndex;
+					blendPair.Weight = (float)weights[i];
+					vertices[indices[i]].BlendInfo.push_back(blendPair);
+				}
+			}
+		}
+	}
+
+	void PackVI(std::vector<MeshVI*>& meshVICache, std::vector<Vertex>& meshVertices, std::vector<int>& meshIndices)
+	{
+		int meshNum = (int)meshVICache.size();
+		if (meshNum == 0)
+			return;
+
+		// Process single subset MeshVI
+		int offset = 0;
+		for (int i = 0; i < meshNum; ++i)
+		{
+			auto& currentVertices = meshVICache[i]->Vertices;
+			auto& currentIndices = meshVICache[i]->Indices;
+
+			meshVertices.insert(meshVertices.end(), currentVertices.begin(), currentVertices.end());
+			std::transform(currentIndices.begin(), currentIndices.end(), currentIndices.begin(),
+				[offset](int a) { return a + offset; });
+			meshIndices.insert(meshIndices.end(), currentIndices.begin(), currentIndices.end());
+			
+			offset += currentVertices.size();
+		}
+	}
+
+	void ReadPosition(FbxMesh* mesh, std::vector<Vertex>& vertices)
+	{
+		FbxVector4* pCtrlPoint = mesh->GetControlPoints();
+		int controlPointsCount = mesh->GetControlPointsCount();
+
+		for (int i = 0; i < controlPointsCount; ++i)
+		{
+			vertices[i].Position.x = (float)pCtrlPoint[i][0];
+			vertices[i].Position.y = (float)pCtrlPoint[i][1];
+			vertices[i].Position.z = (float)pCtrlPoint[i][2];
+		}
+	}
+
+	void ReadIndex(FbxMesh* mesh, std::vector<int>& indices)
+	{
+		int triangleCount = mesh->GetPolygonCount();
+
+		for (int i = 0; i < triangleCount; ++i)
+			for (int j = 0; j < 3; j++)
+			{
+				int ctrlPointIndex = mesh->GetPolygonVertex(i, j);
+				indices.push_back(ctrlPointIndex);
+			}
+	}
+
+	void ReadNormal(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate)
+	{
+		if (mesh->GetElementNormalCount() < 1)
+		{
+			Warning("Lack Normal in mesh %s", mesh->GetName());
+			if (!reGenerate)
+				return;
+			if (!mesh->GenerateNormals())
+			{
+				Warning("Regenerate normal failed for mesh %s", mesh->GetName());
+				return;
+			}
+		}
+
+		FbxGeometryElementNormal* leNormal = mesh->GetElementNormal(0);
+		int controlPointsCount = mesh->GetControlPointsCount();
+		int triangleCount = mesh->GetPolygonCount();
+		int vertexCounter = 0;
+
+		switch (leNormal->GetMappingMode())
+		{
+		case FbxGeometryElement::eByControlPoint:
+			switch (leNormal->GetReferenceMode())
+			{
+			case FbxGeometryElement::eDirect:
+				for (int i = 0; i < controlPointsCount; ++i)
+				{
+					vertices[i].Normal.x = (float)leNormal->GetDirectArray()[i][0];
+					vertices[i].Normal.y = (float)leNormal->GetDirectArray()[i][1];
+					vertices[i].Normal.z = (float)leNormal->GetDirectArray()[i][2];
+				}
+				break;
+			case FbxGeometryElement::eIndexToDirect:
+				for (int i = 0; i < controlPointsCount; ++i)
+				{
+					int id = leNormal->GetIndexArray()[i];
+					vertices[i].Normal.x = (float)leNormal->GetDirectArray()[id][0];
+					vertices[i].Normal.y = (float)leNormal->GetDirectArray()[id][1];
+					vertices[i].Normal.z = (float)leNormal->GetDirectArray()[id][2];
+				}
+				break;
+			default:
+				Warning("Unsupport normal reference mode for mesh %s", mesh->GetName());
+			}
+			break;
+
+		case FbxGeometryElement::eByPolygonVertex:
+		{
+			switch (leNormal->GetReferenceMode())
+			{
+			case FbxGeometryElement::eDirect:
+				for (int i = 0; i < triangleCount; ++i)
+					for (int j = 0; j < 3; j++)
+					{
+						int ctrlPointIndex = mesh->GetPolygonVertex(i, j);
+						vertices[ctrlPointIndex].Normal.x = (float)leNormal->GetDirectArray()[vertexCounter][0];
+						vertices[ctrlPointIndex].Normal.y = (float)leNormal->GetDirectArray()[vertexCounter][1];
+						vertices[ctrlPointIndex].Normal.z = (float)leNormal->GetDirectArray()[vertexCounter][2];
+						++vertexCounter;
+					}
+				break;
+			case FbxGeometryElement::eIndexToDirect:
+				for (int i = 0; i < triangleCount; ++i)
+					for (int j = 0; j < 3; j++)
+					{
+						int ctrlPointIndex = mesh->GetPolygonVertex(i, j);
+						int id = leNormal->GetIndexArray()[vertexCounter];
+						vertices[ctrlPointIndex].Normal.x = (float)leNormal->GetDirectArray()[id][0];
+						vertices[ctrlPointIndex].Normal.y = (float)leNormal->GetDirectArray()[id][1];
+						vertices[ctrlPointIndex].Normal.z = (float)leNormal->GetDirectArray()[id][2];
+						++vertexCounter;
+					}
+				break;
+			default:
+				Warning("Unsupport normal reference mode for mesh %s", mesh->GetName());
+			}
+		}
+		break;
+
+		default:
+			Warning("Unsupport normal mapping mode for mesh %s", mesh->GetName());
+		}
+	}
+
+	void ReadTangent(FbxMesh* mesh, std::vector<Vertex>& vertices, bool reGenerate)
+	{
+		if (mesh->GetElementTangentCount() < 1)
+		{
+			Warning("Lack Tangent in mesh %s", mesh->GetName());
+			if (!reGenerate)
+				return;
+			if (!mesh->GenerateTangentsDataForAllUVSets())
+			{
+				Warning("Regenerate tangent failed for mesh %s", mesh->GetName());
+				return;
+			}
+		}
+
+		FbxGeometryElementTangent* leTangent = mesh->GetElementTangent(0);
+		int controlPointsCount = mesh->GetControlPointsCount();
+		int triangleCount = mesh->GetPolygonCount();
+		int vertexCounter = 0;
+
+		switch (leTangent->GetMappingMode())
+		{
+		case FbxGeometryElement::eByControlPoint:
+			switch (leTangent->GetReferenceMode())
+			{
+			case FbxGeometryElement::eDirect:
+				for (int i = 0; i < controlPointsCount; ++i)
+				{
+					vertices[i].Tangent.x = (float)leTangent->GetDirectArray()[i][0];
+					vertices[i].Tangent.y = (float)leTangent->GetDirectArray()[i][1];
+					vertices[i].Tangent.z = (float)leTangent->GetDirectArray()[i][2];
+				}
+				break;
+			case FbxGeometryElement::eIndexToDirect:
+				for (int i = 0; i < controlPointsCount; ++i)
+				{
+					int id = leTangent->GetIndexArray()[i];
+					vertices[i].Tangent.x = (float)leTangent->GetDirectArray()[id][0];
+					vertices[i].Tangent.y = (float)leTangent->GetDirectArray()[id][1];
+					vertices[i].Tangent.z = (float)leTangent->GetDirectArray()[id][2];
+				}
+				break;
+			default:
+				Warning("Unsupport tangent reference mode for mesh %s", mesh->GetName());
+			}
+			break;
+
+		case FbxGeometryElement::eByPolygonVertex:
+			switch (leTangent->GetReferenceMode())
+			{
+			case FbxGeometryElement::eDirect:
+				for (int i = 0; i < triangleCount; ++i)
+					for (int j = 0; j < 3; j++)
+					{
+						int ctrlPointIndex = mesh->GetPolygonVertex(i, j);
+						vertices[ctrlPointIndex].Tangent.x = (float)leTangent->GetDirectArray()[vertexCounter][0];
+						vertices[ctrlPointIndex].Tangent.y = (float)leTangent->GetDirectArray()[vertexCounter][1];
+						vertices[ctrlPointIndex].Tangent.z = (float)leTangent->GetDirectArray()[vertexCounter][2];
+						++vertexCounter;
+					}
+				break;
+			case FbxGeometryElement::eIndexToDirect:
+				for (int i = 0; i < triangleCount; ++i)
+					for (int j = 0; j < 3; j++)
+					{
+						int ctrlPointIndex = mesh->GetPolygonVertex(i, j);
+						int id = leTangent->GetIndexArray()[vertexCounter];
+						vertices[ctrlPointIndex].Tangent.x = (float)leTangent->GetDirectArray()[id][0];
+						vertices[ctrlPointIndex].Tangent.y = (float)leTangent->GetDirectArray()[id][1];
+						vertices[ctrlPointIndex].Tangent.z = (float)leTangent->GetDirectArray()[id][2];
+						++vertexCounter;
+					}
+				break;
+			default:
+				Warning("Unsupport tangent reference mode for mesh %s", mesh->GetName());
+			}
+			break;
+
+		default:
+			Warning("Unsupport tangent mapping mode for mesh %s", mesh->GetName());
+		}
+	}
 
 }	// namespace handwork

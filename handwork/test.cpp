@@ -1,33 +1,20 @@
-//#include "mesh/fbxloader.h"
-//
-//using namespace handwork;
-//using namespace std;
-//
-//void main()
-//{
-//	auto a = new FbxLoader();
-//	string file = "C:\\Users\\Jx\\Desktop\\hand.fbx";
-//
-//	a->ImportFile(file.c_str());
-//
-//
-//}
+#include "utility/utility.h"
+#include "mesh/fbxloader.h"
 
-#include <iostream>
-#include "glog/logging.h"
-#include "utility/stringprint.h"
+using namespace handwork;
+using namespace std;
 
 void main(int argc, char* argv[])
 {
-	
 	FLAGS_log_dir = "./";
 	// Initialize Google's logging library.
 	google::InitGoogleLogging(argv[0]);
 
-	//// ...
-	//LOG(INFO) << "Found " << 5 << " cookies";
-	//LOG(INFO) << "Found " << 5 << " cookies";
-	//LOG(INFO) << "Found " << 5 << " cookies";
-	//LOG(INFO) << "Found " << 5 << " cookies";
-
+	string file = "C:\\Users\\Jx\\Desktop\\hand.fbx";
+	float fileScale = 0.0f;
+	vector<Joint> skeleton;
+	vector<Vertex> vertices;
+	vector<int> indices;
+	
+	bool flag = ImportFbx(file, fileScale, skeleton, vertices, indices);
 }
