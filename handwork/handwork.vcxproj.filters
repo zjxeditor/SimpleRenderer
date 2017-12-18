@@ -7,6 +7,9 @@
     <Filter Include="utility">
       <UniqueIdentifier>{4ce00f9e-6c44-405a-9a4a-3e5cbf65e921}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rendering">
+      <UniqueIdentifier>{0ecfedd6-5b69-43ed-ad41-9950ffa80f93}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="utility\fileutil.cpp">
@@ -36,6 +39,27 @@
     </ClCompile>
     <ClCompile Include="mesh\meshtopology.cpp">
       <Filter>mesh</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\d3dutil.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\mathhelper.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\geogenerator.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\gametimer.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\frameresource.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\camera.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\d3dapp.cpp">
+      <Filter>rendering</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -80,6 +104,33 @@
     </ClInclude>
     <ClInclude Include="mesh\meshtopology.h">
       <Filter>mesh</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\d3dx12.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\d3dutil.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\mathhelper.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\geogenerator.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\gametimer.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\uploadbuffer.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\frameresource.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\camera.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\d3dapp.h">
+      <Filter>rendering</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

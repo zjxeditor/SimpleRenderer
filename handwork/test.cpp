@@ -24,10 +24,15 @@ void main(int argc, char* argv[])
 	std::transform(vertices.begin(), vertices.end(), positions.begin(), [](MeshVertex& a) {return a.Position; });
 	MeshTopology topology(indices.size(), &indices[0], positions.size(), &positions[0]);
 
-	SDVertex* sdv = topology.GetVertices();
+	/*SDVertex* sdv = topology.GetVertices();
 	for (int i = 0; i < (int)positions.size(); ++i)
 	{
 		cout << StringPrintf("Vertex %d valence %d", i, sdv[i].valence()) << endl;
+	}*/
+
+	for (int i = 0; i < (int)vertices.size(); ++i)
+	{
+		cout << StringPrintf("Vertex %d blend %d", i, vertices[i].BlendInfo.size()) << endl;;
 	}
 
 }

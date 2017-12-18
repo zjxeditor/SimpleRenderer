@@ -21,6 +21,13 @@
   <ItemGroup>
     <ClCompile Include="mesh\fbxloader.cpp" />
     <ClCompile Include="mesh\meshtopology.cpp" />
+    <ClCompile Include="rendering\camera.cpp" />
+    <ClCompile Include="rendering\d3dapp.cpp" />
+    <ClCompile Include="rendering\d3dutil.cpp" />
+    <ClCompile Include="rendering\frameresource.cpp" />
+    <ClCompile Include="rendering\gametimer.cpp" />
+    <ClCompile Include="rendering\geogenerator.cpp" />
+    <ClCompile Include="rendering\mathhelper.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="utility\error.cpp" />
     <ClCompile Include="utility\fileutil.cpp" />
@@ -33,6 +40,15 @@
   <ItemGroup>
     <ClInclude Include="mesh\fbxloader.h" />
     <ClInclude Include="mesh\meshtopology.h" />
+    <ClInclude Include="rendering\camera.h" />
+    <ClInclude Include="rendering\d3dapp.h" />
+    <ClInclude Include="rendering\d3dutil.h" />
+    <ClInclude Include="rendering\d3dx12.h" />
+    <ClInclude Include="rendering\frameresource.h" />
+    <ClInclude Include="rendering\gametimer.h" />
+    <ClInclude Include="rendering\geogenerator.h" />
+    <ClInclude Include="rendering\mathhelper.h" />
+    <ClInclude Include="rendering\uploadbuffer.h" />
     <ClInclude Include="utility\error.h" />
     <ClInclude Include="utility\fileutil.h" />
     <ClInclude Include="utility\floatfile.h" />
@@ -117,12 +133,12 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;NOMINMAX;_CRT_SECURE_NO_WARNINGS;FBXSDK_SHARED;GOOGLE_GLOG_DLL_DECL=;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;NOMINMAX;_CRT_SECURE_NO_WARNINGS;FBXSDK_SHARED;GOOGLE_GLOG_DLL_DECL=;GLOG_NO_ABBREVIATED_SEVERITIES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies>glog.lib;libfbxsdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glog.lib;libfbxsdk.lib;d3dcompiler.lib;D3D12.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
