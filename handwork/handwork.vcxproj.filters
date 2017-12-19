@@ -10,6 +10,9 @@
     <Filter Include="rendering">
       <UniqueIdentifier>{0ecfedd6-5b69-43ed-ad41-9950ffa80f93}</UniqueIdentifier>
     </Filter>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{fdb97c16-e82a-4597-88dd-e8d9e8c433d6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="utility\fileutil.cpp">
@@ -59,6 +62,16 @@
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="rendering\d3dapp.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\app.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="rendering\shadowmap.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\ssao.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
   </ItemGroup>
@@ -132,5 +145,40 @@
     <ClInclude Include="rendering\d3dapp.h">
       <Filter>rendering</Filter>
     </ClInclude>
+    <ClInclude Include="rendering\app.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\shadowmap.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\ssao.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\lightingutil.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\common.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\default.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\shadows.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\ssao.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\ssaoblur.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\debug.hlsl">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="shaders\drawnormals.hlsl">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

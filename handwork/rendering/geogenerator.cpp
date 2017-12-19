@@ -657,5 +657,4 @@ namespace handwork
 		return meshData;
 	}
 
-
 }	// namespace handwork

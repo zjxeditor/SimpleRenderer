@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -19,8 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="mesh\fbxloader.cpp" />
     <ClCompile Include="mesh\meshtopology.cpp" />
+    <ClCompile Include="rendering\app.cpp" />
     <ClCompile Include="rendering\camera.cpp" />
     <ClCompile Include="rendering\d3dapp.cpp" />
     <ClCompile Include="rendering\d3dutil.cpp" />
@@ -28,6 +30,8 @@
     <ClCompile Include="rendering\gametimer.cpp" />
     <ClCompile Include="rendering\geogenerator.cpp" />
     <ClCompile Include="rendering\mathhelper.cpp" />
+    <ClCompile Include="rendering\shadowmap.cpp" />
+    <ClCompile Include="rendering\ssao.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="utility\error.cpp" />
     <ClCompile Include="utility\fileutil.cpp" />
@@ -40,6 +44,7 @@
   <ItemGroup>
     <ClInclude Include="mesh\fbxloader.h" />
     <ClInclude Include="mesh\meshtopology.h" />
+    <ClInclude Include="rendering\app.h" />
     <ClInclude Include="rendering\camera.h" />
     <ClInclude Include="rendering\d3dapp.h" />
     <ClInclude Include="rendering\d3dutil.h" />
@@ -48,6 +53,8 @@
     <ClInclude Include="rendering\gametimer.h" />
     <ClInclude Include="rendering\geogenerator.h" />
     <ClInclude Include="rendering\mathhelper.h" />
+    <ClInclude Include="rendering\shadowmap.h" />
+    <ClInclude Include="rendering\ssao.h" />
     <ClInclude Include="rendering\uploadbuffer.h" />
     <ClInclude Include="utility\error.h" />
     <ClInclude Include="utility\fileutil.h" />
@@ -61,6 +68,38 @@
     <ClInclude Include="utility\stringprint.h" />
     <ClInclude Include="utility\transform.h" />
     <ClInclude Include="utility\utility.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\common.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shaders\default.hlsl">
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.1</ShaderModel>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shaders\lightingutil.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\drawnormals.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shaders\shadows.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shaders\ssao.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="shaders\ssaoblur.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shaders\debug.hlsl">
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
@@ -133,11 +172,11 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;NOMINMAX;_CRT_SECURE_NO_WARNINGS;FBXSDK_SHARED;GOOGLE_GLOG_DLL_DECL=;GLOG_NO_ABBREVIATED_SEVERITIES;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;FBXSDK_SHARED;GOOGLE_GLOG_DLL_DECL=;GLOG_NO_ABBREVIATED_SEVERITIES;_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <SubSystem>Console</SubSystem>
+      <SubSystem>Windows</SubSystem>
       <AdditionalDependencies>glog.lib;libfbxsdk.lib;d3dcompiler.lib;D3D12.lib;dxgi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
