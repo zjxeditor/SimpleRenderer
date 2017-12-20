@@ -29,6 +29,7 @@ namespace handwork
 		// Only one D3DApp can be constructed.
 		assert(mApp == nullptr);
 		mApp = this;
+		m4xMsaaState = true;
 	}
 
 	D3DApp::~D3DApp()
@@ -130,7 +131,7 @@ namespace handwork
 
 
 		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.NumDescriptors = 2;
 		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		dsvHeapDesc.NodeMask = 0;
@@ -151,8 +152,12 @@ namespace handwork
 
 		// Release the previous resources we will be recreating.
 		for (int i = 0; i < SwapChainBufferCount; ++i)
+		{
 			mSwapChainBuffer[i].Reset();
+			mOffScreenBuffer[i].Reset();
+		}
 		mDepthStencilBuffer.Reset();
+		mDepthStencilBufferNMS.Reset();
 
 		// Resize the swap chain.
 		ThrowIfFailed(mSwapChain->ResizeBuffers(
@@ -163,58 +168,174 @@ namespace handwork
 
 		mCurrBackBuffer = 0;
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
-		for (UINT i = 0; i < SwapChainBufferCount; i++)
+		if(!m4xMsaaState || m4xMsaaQuality <= 0)	
 		{
-			ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
-			md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
-			rtvHeapHandle.Offset(1, mRtvDescriptorSize);
+			// No 4xMSAA
+			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+			for (UINT i = 0; i < SwapChainBufferCount; i++)
+			{
+				ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+				md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
+				rtvHeapHandle.Offset(1, mRtvDescriptorSize);
+			}
+
+			// Create the depth/stencil buffer and view.
+			D3D12_RESOURCE_DESC depthStencilDesc;
+			depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			depthStencilDesc.Alignment = 0;
+			depthStencilDesc.Width = mClientWidth;
+			depthStencilDesc.Height = mClientHeight;
+			depthStencilDesc.DepthOrArraySize = 1;
+			depthStencilDesc.MipLevels = 1;
+
+			// Correction 11/12/2016: SSAO chapter requires an SRV to the depth buffer to read from 
+			// the depth buffer.  Therefore, because we need to create two views to the same resource:
+			//   1. SRV format: DXGI_FORMAT_R24_UNORM_X8_TYPELESS
+			//   2. DSV Format: DXGI_FORMAT_D24_UNORM_S8_UINT
+			// we need to create the depth buffer resource with a typeless format.  
+			depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+
+			depthStencilDesc.SampleDesc.Count = 1;
+			depthStencilDesc.SampleDesc.Quality = 0;
+			depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+			D3D12_CLEAR_VALUE optClear;
+			optClear.Format = mDepthStencilFormat;
+			optClear.DepthStencil.Depth = 1.0f;
+			optClear.DepthStencil.Stencil = 0;
+			ThrowIfFailed(md3dDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&depthStencilDesc,
+				D3D12_RESOURCE_STATE_COMMON,
+				&optClear,
+				IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
+
+			mDepthStencilBufferNMS = mDepthStencilBuffer;
+
+			// Create descriptor to mip level 0 of entire resource using the format of the resource.
+			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+			dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+			dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+			dsvDesc.Format = mDepthStencilFormat;
+			dsvDesc.Texture2D.MipSlice = 0;
+			md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), &dsvDesc, DepthStencilView());
+
+			md3dDevice->CreateDepthStencilView(mDepthStencilBufferNMS.Get(), &dsvDesc, DepthStencilViewNMS());
+
+			// Transition the resource from its initial state to be used as a depth buffer.
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+				D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
 		}
+		else
+		{
+			// 4xMSAA 
+			// Create off screen buffers
+			D3D12_RESOURCE_DESC offScreenDesc;
+			offScreenDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			offScreenDesc.Alignment = 0;
+			offScreenDesc.Width = mClientWidth;
+			offScreenDesc.Height = mClientHeight;
+			offScreenDesc.DepthOrArraySize = 1;
+			offScreenDesc.MipLevels = 1;
+			offScreenDesc.Format = mBackBufferFormat;
+			offScreenDesc.SampleDesc.Count = 4;
+			offScreenDesc.SampleDesc.Quality = m4xMsaaQuality - 1;
+			offScreenDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			offScreenDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 
-		// Create the depth/stencil buffer and view.
-		D3D12_RESOURCE_DESC depthStencilDesc;
-		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		depthStencilDesc.Alignment = 0;
-		depthStencilDesc.Width = mClientWidth;
-		depthStencilDesc.Height = mClientHeight;
-		depthStencilDesc.DepthOrArraySize = 1;
-		depthStencilDesc.MipLevels = 1;
+			D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {};
+			rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2DMS;
+			rtvDesc.Format = mBackBufferFormat;
+			rtvDesc.Texture2D.MipSlice = 0;
+			rtvDesc.Texture2D.PlaneSlice = 0;
 
-		// Correction 11/12/2016: SSAO chapter requires an SRV to the depth buffer to read from 
-		// the depth buffer.  Therefore, because we need to create two views to the same resource:
-		//   1. SRV format: DXGI_FORMAT_R24_UNORM_X8_TYPELESS
-		//   2. DSV Format: DXGI_FORMAT_D24_UNORM_S8_UINT
-		// we need to create the depth buffer resource with a typeless format.  
-		depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+			D3D12_CLEAR_VALUE ofsClear;
+			ofsClear.Format = mBackBufferFormat;
+			memcpy(ofsClear.Color, Colors::LightSteelBlue, sizeof(float) * 4);
 
-		depthStencilDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
-		depthStencilDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
-		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+			for (UINT i = 0; i < SwapChainBufferCount; i++)
+			{
+				ThrowIfFailed(md3dDevice->CreateCommittedResource(
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+					D3D12_HEAP_FLAG_NONE,
+					&offScreenDesc,
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					&ofsClear,
+					IID_PPV_ARGS(mOffScreenBuffer[i].GetAddressOf())));
+				ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+				md3dDevice->CreateRenderTargetView(mOffScreenBuffer[i].Get(), &rtvDesc, rtvHeapHandle);
+				rtvHeapHandle.Offset(1, mRtvDescriptorSize);
+			}
 
-		D3D12_CLEAR_VALUE optClear;
-		optClear.Format = mDepthStencilFormat;
-		optClear.DepthStencil.Depth = 1.0f;
-		optClear.DepthStencil.Stencil = 0;
-		ThrowIfFailed(md3dDevice->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
-			D3D12_HEAP_FLAG_NONE,
-			&depthStencilDesc,
-			D3D12_RESOURCE_STATE_COMMON,
-			&optClear,
-			IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
+			for (UINT i = 0; i < SwapChainBufferCount; i++)
+			{
+				mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mOffScreenBuffer[i].Get(),
+					D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_RESOLVE_SOURCE));
+			}
 
-		// Create descriptor to mip level 0 of entire resource using the format of the resource.
-		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
-		dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
-		dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
-		dsvDesc.Format = mDepthStencilFormat;
-		dsvDesc.Texture2D.MipSlice = 0;
-		md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), &dsvDesc, DepthStencilView());
+			// Create the depth/stencil buffer and view.
+			D3D12_RESOURCE_DESC depthStencilDesc;
+			depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+			depthStencilDesc.Alignment = 0;
+			depthStencilDesc.Width = mClientWidth;
+			depthStencilDesc.Height = mClientHeight;
+			depthStencilDesc.DepthOrArraySize = 1;
+			depthStencilDesc.MipLevels = 1;
 
-		// Transition the resource from its initial state to be used as a depth buffer.
-		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
-			D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+			// Correction 11/12/2016: SSAO chapter requires an SRV to the depth buffer to read from 
+			// the depth buffer.  Therefore, because we need to create two views to the same resource:
+			//   1. SRV format: DXGI_FORMAT_R24_UNORM_X8_TYPELESS
+			//   2. DSV Format: DXGI_FORMAT_D24_UNORM_S8_UINT
+			// we need to create the depth buffer resource with a typeless format.  
+			depthStencilDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+
+			depthStencilDesc.SampleDesc.Count = 4;
+			depthStencilDesc.SampleDesc.Quality = m4xMsaaQuality - 1;
+			depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+			depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+			D3D12_CLEAR_VALUE optClear;
+			optClear.Format = mDepthStencilFormat;
+			optClear.DepthStencil.Depth = 1.0f;
+			optClear.DepthStencil.Stencil = 0;
+			ThrowIfFailed(md3dDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&depthStencilDesc,
+				D3D12_RESOURCE_STATE_COMMON,
+				&optClear,
+				IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())));
+
+			depthStencilDesc.SampleDesc.Count = 1;
+			depthStencilDesc.SampleDesc.Quality = 0;
+			ThrowIfFailed(md3dDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				D3D12_HEAP_FLAG_NONE,
+				&depthStencilDesc,
+				D3D12_RESOURCE_STATE_COMMON,
+				&optClear,
+				IID_PPV_ARGS(mDepthStencilBufferNMS.GetAddressOf())));
+
+			// Create descriptor to mip level 0 of entire resource using the format of the resource.
+			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+			dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+			dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2DMS;
+			dsvDesc.Format = mDepthStencilFormat;
+			dsvDesc.Texture2D.MipSlice = 0;
+			md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), &dsvDesc, DepthStencilView());
+
+			dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+			md3dDevice->CreateDepthStencilView(mDepthStencilBufferNMS.Get(), &dsvDesc, DepthStencilViewNMS());
+
+			// Transition the resource from its initial state to be used as a depth buffer.
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+				D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBufferNMS.Get(),
+				D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE));
+		}
 
 		// Execute the resize commands.
 		ThrowIfFailed(mCommandList->Close());
@@ -428,7 +549,7 @@ namespace handwork
 		// Try to create hardware device.
 		HRESULT hardwareResult = D3D12CreateDevice(
 			nullptr,             // default adapter
-			D3D_FEATURE_LEVEL_11_0,
+			D3D_FEATURE_LEVEL_12_0,
 			IID_PPV_ARGS(&md3dDevice));
 
 		// Fallback to WARP device.
@@ -439,7 +560,7 @@ namespace handwork
 
 			ThrowIfFailed(D3D12CreateDevice(
 				pWarpAdapter.Get(),
-				D3D_FEATURE_LEVEL_11_0,
+				D3D_FEATURE_LEVEL_12_0,
 				IID_PPV_ARGS(&md3dDevice)));
 		}
 
@@ -515,8 +636,8 @@ namespace handwork
 		sd.BufferDesc.Format = mBackBufferFormat;
 		sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 		sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-		sd.SampleDesc.Count = m4xMsaaState ? 4 : 1;
-		sd.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
+		sd.SampleDesc.Count = 1;
+		sd.SampleDesc.Quality = 0;
 		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 		sd.BufferCount = SwapChainBufferCount;
 		sd.OutputWindow = mhMainWnd;
@@ -557,7 +678,10 @@ namespace handwork
 
 	ID3D12Resource* D3DApp::CurrentBackBuffer()const
 	{
-		return mSwapChainBuffer[mCurrBackBuffer].Get();
+		if (!m4xMsaaState || m4xMsaaQuality <= 0)
+			return mSwapChainBuffer[mCurrBackBuffer].Get();
+		else
+			return mOffScreenBuffer[mCurrBackBuffer].Get();
 	}
 
 	D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::CurrentBackBufferView()const
@@ -571,6 +695,13 @@ namespace handwork
 	D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::DepthStencilView()const
 	{
 		return mDsvHeap->GetCPUDescriptorHandleForHeapStart();
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE D3DApp::DepthStencilViewNMS()const
+	{
+		auto dsv = CD3DX12_CPU_DESCRIPTOR_HANDLE(mDsvHeap->GetCPUDescriptorHandleForHeapStart());
+		dsv.Offset(1, mDsvDescriptorSize);
+		return dsv;
 	}
 
 	void D3DApp::CalculateFrameStats()

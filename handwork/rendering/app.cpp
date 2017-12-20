@@ -30,6 +30,8 @@ namespace handwork
 		if (!D3DApp::Initialize())
 			return false;
 
+		//Set4xMsaaState(true);
+
 		// Reset the command list to prep for initialization commands.
 		ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
@@ -79,7 +81,7 @@ namespace handwork
 
 		// Add +1 DSV for shadow map.
 		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
-		dsvHeapDesc.NumDescriptors = 2;
+		dsvHeapDesc.NumDescriptors = 3;
 		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
 		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 		dsvHeapDesc.NodeMask = 0;
@@ -98,7 +100,7 @@ namespace handwork
 			mSsao->OnResize(mClientWidth, mClientHeight);
 
 			// Resources changed, so need to rebuild descriptors.
-			mSsao->RebuildDescriptors(mDepthStencilBuffer.Get());
+			mSsao->RebuildDescriptors(mDepthStencilBufferNMS.Get());
 		}
 	}
 
@@ -194,7 +196,7 @@ namespace handwork
 
 		// Rebind state whenever graphics root signature changes.
 
-		// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
+		// Bind all the materials used in this scene. For structured buffers, we can bypass the heap and 
 		// set as a root descriptor.
 		matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
 		mCommandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
@@ -204,8 +206,18 @@ namespace handwork
 		mCommandList->RSSetScissorRects(1, &mScissorRect);
 
 		// Indicate a state transition on the resource usage.
-		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		if (!m4xMsaaState || m4xMsaaQuality <= 0)
+		{
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+		}
+		else
+		{
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+				D3D12_RESOURCE_STATE_RESOLVE_SOURCE, D3D12_RESOURCE_STATE_RENDER_TARGET));
+			mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		}
+		
 
 		// Clear the back buffer.
 		mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
@@ -230,8 +242,32 @@ namespace handwork
 		DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Debug]);
 
 		// Indicate a state transition on the resource usage.
-		mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+		if (!m4xMsaaState || m4xMsaaQuality <= 0)
+		{
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+				D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+		}
+		else
+		{
+			D3D12_RESOURCE_BARRIER barriers[2] =
+			{
+				CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+				CD3DX12_RESOURCE_BARRIER::Transition(mSwapChainBuffer[mCurrBackBuffer].Get(),
+				D3D12_RESOURCE_STATE_PRESENT,
+				D3D12_RESOURCE_STATE_RESOLVE_DEST)
+			};
+			mCommandList->ResourceBarrier(2, barriers);
+
+			mCommandList->ResolveSubresource(mSwapChainBuffer[mCurrBackBuffer].Get(), 0,
+				CurrentBackBuffer(), 0, mBackBufferFormat);
+
+			D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+				mSwapChainBuffer[mCurrBackBuffer].Get(),
+				D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT);
+			mCommandList->ResourceBarrier(1, &barrier);
+		}
 
 		// Done recording commands.
 		ThrowIfFailed(mCommandList->Close());
@@ -652,10 +688,10 @@ namespace handwork
 		mShadowMap->BuildDescriptors(
 			GetCpuSrv(mShadowMapHeapIndex),
 			GetGpuSrv(mShadowMapHeapIndex),
-			GetDsv(1));
+			GetDsv(2));
 
 		mSsao->BuildDescriptors(
-			mDepthStencilBuffer.Get(),
+			mDepthStencilBufferNMS.Get(),
 			GetCpuSrv(mSsaoHeapIndexStart),
 			GetGpuSrv(mSsaoHeapIndexStart),
 			GetRtv(SwapChainBufferCount),
@@ -858,8 +894,8 @@ namespace handwork
 		basePsoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		basePsoDesc.NumRenderTargets = 1;
 		basePsoDesc.RTVFormats[0] = mBackBufferFormat;
-		basePsoDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
-		basePsoDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
+		basePsoDesc.SampleDesc.Count = 1;
+		basePsoDesc.SampleDesc.Quality = 0;
 		basePsoDesc.DSVFormat = mDepthStencilFormat;
 
 		//
@@ -867,8 +903,17 @@ namespace handwork
 		//
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc = basePsoDesc;
-		opaquePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
-		opaquePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		if (m4xMsaaState && m4xMsaaQuality > 0)
+		{
+			opaquePsoDesc.RasterizerState.MultisampleEnable = true;
+			opaquePsoDesc.SampleDesc.Count = 4;
+			opaquePsoDesc.SampleDesc.Quality = m4xMsaaQuality - 1;
+		}
+		else
+		{
+			opaquePsoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_EQUAL;
+			opaquePsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+		}
 		ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 
 		//
@@ -910,6 +955,12 @@ namespace handwork
 			reinterpret_cast<BYTE*>(mShaders["debugPS"]->GetBufferPointer()),
 			mShaders["debugPS"]->GetBufferSize()
 		};
+		if (m4xMsaaState && m4xMsaaQuality > 0)
+		{
+			debugPsoDesc.RasterizerState.MultisampleEnable = true;
+			debugPsoDesc.SampleDesc.Count = 4;
+			debugPsoDesc.SampleDesc.Quality = m4xMsaaQuality - 1;
+		}
 		ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&debugPsoDesc, IID_PPV_ARGS(&mPSOs["debug"])));
 
 		//
@@ -1193,10 +1244,10 @@ namespace handwork
 		// Clear the screen normal map and depth buffer.
 		float clearValue[] = { 0.0f, 0.0f, 1.0f, 0.0f };
 		mCommandList->ClearRenderTargetView(normalMapRtv, clearValue, 0, nullptr);
-		mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+		mCommandList->ClearDepthStencilView(DepthStencilViewNMS(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 
 		// Specify the buffers we are going to render to.
-		mCommandList->OMSetRenderTargets(1, &normalMapRtv, true, &DepthStencilView());
+		mCommandList->OMSetRenderTargets(1, &normalMapRtv, true, &DepthStencilViewNMS());
 
 		// Bind the constant buffer for this pass.
 		auto passCB = mCurrFrameResource->PassCB->Resource();

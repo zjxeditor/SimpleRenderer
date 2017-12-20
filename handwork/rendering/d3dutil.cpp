@@ -46,7 +46,7 @@ namespace handwork
 		Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
 	{
 		ComPtr<ID3D12Resource> defaultBuffer;
-
+		
 		// Create the actual default buffer resource.
 		ThrowIfFailed(device->CreateCommittedResource(
 			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),

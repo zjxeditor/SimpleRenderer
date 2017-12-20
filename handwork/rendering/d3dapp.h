@@ -57,6 +57,7 @@ namespace handwork
 		ID3D12Resource* CurrentBackBuffer()const;
 		D3D12_CPU_DESCRIPTOR_HANDLE CurrentBackBufferView()const;
 		D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilView()const;
+		D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilViewNMS()const;
 
 		void CalculateFrameStats();
 
@@ -76,7 +77,7 @@ namespace handwork
 		bool      mFullscreenState = false;// fullscreen enabled
 
 										   // Set true to use 4X MSAA (?.1.8).  The default is false.
-		bool      m4xMsaaState = false;    // 4X MSAA enabled
+		bool      m4xMsaaState = true;    // 4X MSAA enabled
 		UINT      m4xMsaaQuality = 0;      // quality level of 4X MSAA
 
 										   // Used to keep track of the “delta-time?and game time (?.4).
@@ -96,7 +97,9 @@ namespace handwork
 		static const int SwapChainBufferCount = 2;
 		int mCurrBackBuffer = 0;
 		Microsoft::WRL::ComPtr<ID3D12Resource> mSwapChainBuffer[SwapChainBufferCount];
+		Microsoft::WRL::ComPtr<ID3D12Resource> mOffScreenBuffer[SwapChainBufferCount];
 		Microsoft::WRL::ComPtr<ID3D12Resource> mDepthStencilBuffer;
+		Microsoft::WRL::ComPtr<ID3D12Resource> mDepthStencilBufferNMS;
 
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mRtvHeap;
 		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mDsvHeap;
