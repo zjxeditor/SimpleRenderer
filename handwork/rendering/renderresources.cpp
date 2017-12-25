@@ -880,6 +880,7 @@ namespace handwork
 
 		void RenderResources::BuildPSOs()
 		{
+			UINT msaaCount = mDeviceResources->GetMsaaCount();
 			UINT msaaQuality = mDeviceResources->GetMsaaQuality();
 			ID3D12Device* device = mDeviceResources->GetD3DDevice();
 
@@ -917,7 +918,7 @@ namespace handwork
 			if (msaaQuality > 0)
 			{
 				opaquePsoDesc.RasterizerState.MultisampleEnable = true;
-				opaquePsoDesc.SampleDesc.Count = 4;
+				opaquePsoDesc.SampleDesc.Count = msaaCount;
 				opaquePsoDesc.SampleDesc.Quality = msaaQuality - 1;
 			}
 			else
@@ -969,7 +970,7 @@ namespace handwork
 			if (msaaQuality > 0)
 			{
 				debugPsoDesc.RasterizerState.MultisampleEnable = true;
-				debugPsoDesc.SampleDesc.Count = 4;
+				debugPsoDesc.SampleDesc.Count = msaaCount;
 				debugPsoDesc.SampleDesc.Quality = msaaQuality - 1;
 			}
 			ThrowIfFailed(device->CreateGraphicsPipelineState(&debugPsoDesc, IID_PPV_ARGS(&mPSOs["debug"])));
