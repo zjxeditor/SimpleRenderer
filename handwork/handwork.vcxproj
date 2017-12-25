@@ -24,12 +24,13 @@
     <ClCompile Include="mesh\meshtopology.cpp" />
     <ClCompile Include="rendering\app.cpp" />
     <ClCompile Include="rendering\camera.cpp" />
-    <ClCompile Include="rendering\d3dapp.cpp" />
     <ClCompile Include="rendering\d3dutil.cpp" />
+    <ClCompile Include="rendering\deviceresources.cpp" />
     <ClCompile Include="rendering\frameresource.cpp" />
     <ClCompile Include="rendering\gametimer.cpp" />
     <ClCompile Include="rendering\geogenerator.cpp" />
     <ClCompile Include="rendering\mathhelper.cpp" />
+    <ClCompile Include="rendering\renderresources.cpp" />
     <ClCompile Include="rendering\shadowmap.cpp" />
     <ClCompile Include="rendering\ssao.cpp" />
     <ClCompile Include="test.cpp" />
@@ -44,15 +45,18 @@
   <ItemGroup>
     <ClInclude Include="mesh\fbxloader.h" />
     <ClInclude Include="mesh\meshtopology.h" />
+    <ClInclude Include="myapp.h" />
     <ClInclude Include="rendering\app.h" />
     <ClInclude Include="rendering\camera.h" />
-    <ClInclude Include="rendering\d3dapp.h" />
+    <ClInclude Include="rendering\bridgestructs.h" />
     <ClInclude Include="rendering\d3dutil.h" />
     <ClInclude Include="rendering\d3dx12.h" />
+    <ClInclude Include="rendering\deviceresources.h" />
     <ClInclude Include="rendering\frameresource.h" />
     <ClInclude Include="rendering\gametimer.h" />
     <ClInclude Include="rendering\geogenerator.h" />
     <ClInclude Include="rendering\mathhelper.h" />
+    <ClInclude Include="rendering\renderresources.h" />
     <ClInclude Include="rendering\shadowmap.h" />
     <ClInclude Include="rendering\ssao.h" />
     <ClInclude Include="rendering\uploadbuffer.h" />

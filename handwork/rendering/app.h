@@ -2,127 +2,77 @@
 
 #pragma once
 
-#include "d3dapp.h"
-#include "mathhelper.h"
-#include "uploadbuffer.h"
 #include "geogenerator.h"
 #include "camera.h"
 #include "frameresource.h"
 #include "shadowmap.h"
 #include "ssao.h"
+#include "deviceresources.h"
+#include "renderresources.h"
 
 namespace handwork
 {
-	// Divide rander items by pixel shader.
-	enum class RenderLayer : int
+	namespace rendering
 	{
-		Opaque = 0,
-		Debug,
-		Count
-	};
-		
-	class App : public D3DApp
-	{
-	public:
-		App(HINSTANCE hInstance);
-		App(const App& rhs) = delete;
-		App& operator=(const App& rhs) = delete;
-		~App();
+		class App : IDeviceNotify
+		{
+		public:
+			App(HINSTANCE hInstance);
+			App(const App& rhs) = delete;
+			App& operator=(const App& rhs) = delete;
+			~App();
+			static App* GetApp();
 
-		virtual bool Initialize()override;
+			LRESULT MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-	private:
-		virtual void CreateRtvAndDsvDescriptorHeaps()override;
-		virtual void OnResize()override;
-		virtual void Update(const GameTimer& gt)override;
-		virtual void Draw(const GameTimer& gt)override;
+			bool Initialize();
+			int Run();
+			void SetCameraSpeed(float speed) { mCameraSpeed = speed; }
 
-		virtual void OnMouseDown(WPARAM btnState, int x, int y)override;
-		virtual void OnMouseUp(WPARAM btnState, int x, int y)override;
-		virtual void OnMouseMove(WPARAM btnState, int x, int y)override;
+		protected:
+			virtual void Update();
+			virtual void OnMouseDown(WPARAM btnState, int x, int y);
+			virtual void OnMouseUp(WPARAM btnState, int x, int y);
+			virtual void OnMouseMove(WPARAM btnState, int x, int y);
 
-		void OnKeyboardInput(const GameTimer& gt);
-		void UpdateObjectCBs(const GameTimer& gt);
-		void UpdateMaterialBuffer(const GameTimer& gt);
-		void UpdateShadowTransform(const GameTimer& gt);
-		void UpdateMainPassCB(const GameTimer& gt);
-		void UpdateShadowPassCB(const GameTimer& gt);
-		void UpdateSsaoCB(const GameTimer& gt);
+			// Use these three method to do main application work.
+			virtual void PreInitialize() = 0;
+			virtual void PostInitialize() = 0;
+			virtual void AddRenderData() = 0;
 
-		void BuildRootSignature();
-		void BuildSsaoRootSignature();
-		void BuildDescriptorHeaps();
-		void BuildShadersAndInputLayout();
-		void BuildShapeGeometry();
-		void BuildPSOs();
-		void BuildFrameResources();
-		void BuildMaterials();
-		void BuildRenderItems();
-		void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
-		void DrawSceneToShadowMap();
-		void DrawNormalsAndDepth();
+			// IDeviceNotify
+			virtual void OnDeviceLost();
+			virtual void OnDeviceRestored();
 
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetCpuSrv(int index)const;
-		CD3DX12_GPU_DESCRIPTOR_HANDLE GetGpuSrv(int index)const;
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetDsv(int index)const;
-		CD3DX12_CPU_DESCRIPTOR_HANDLE GetRtv(int index)const;
+			std::shared_ptr<DeviceResources> mDeviceResources;
+			std::shared_ptr<RenderResources> mRenderResources;
+			std::shared_ptr<GameTimer> mGameTimer;
+			std::shared_ptr<Camera> mCamera;
 
-		std::array<const CD3DX12_STATIC_SAMPLER_DESC, 7> GetStaticSamplers();
+			MSAATYPE mMsaaType = MSAATYPE::MSAAx4;
+			UINT mMaxRenderWidth = 1920;
+			UINT mMaxRenderHeight = 1080;
+			bool mUseStandardAssets = false;
 
-	private:
-		std::vector<std::unique_ptr<FrameResource>> mFrameResources;
-		FrameResource* mCurrFrameResource = nullptr;
-		int mCurrFrameResourceIndex = 0;
+		private:
+			static App* mApp;
 
-		Microsoft::WRL::ComPtr<ID3D12RootSignature> mRootSignature = nullptr;
-		Microsoft::WRL::ComPtr<ID3D12RootSignature> mSsaoRootSignature = nullptr;
+			void CalculateFrameStats();
 
-		Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> mSrvDescriptorHeap = nullptr;
+			HINSTANCE mhAppInst = nullptr;		// application instance handle
+			HWND      mhMainWnd = nullptr;		// main window handle
+			bool      mAppPaused = false;		// is the application paused?
+			bool      mMinimized = false;		// is the application minimized?
+			bool      mMaximized = false;		// is the application maximized?
+			bool      mResizing = false;		// are the resize bars being dragged?
+			bool      mFullscreenState = false;	// fullscreen enabled
 
-		std::unordered_map<std::string, std::unique_ptr<MeshGeometry>> mGeometries;
-		std::unordered_map<std::string, std::unique_ptr<Material>> mMaterials;
-		std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3DBlob>> mShaders;
-		std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D12PipelineState>> mPSOs;
-
-		std::vector<D3D12_INPUT_ELEMENT_DESC> mInputLayout;
-
-		// List of all the render items.
-		std::vector<std::unique_ptr<RenderItem>> mAllRitems;
-		// Render items divided by PSO.
-		std::vector<RenderItem*> mRitemLayer[(int)RenderLayer::Count];
-
-		UINT mShadowMapHeapIndex = 0;
-		UINT mSsaoHeapIndexStart = 0;
-		UINT mSsaoAmbientMapIndex = 0;
-		UINT mNullTexSrvIndex1 = 0;
-		UINT mNullTexSrvIndex2 = 0;
-		CD3DX12_GPU_DESCRIPTOR_HANDLE mNullSrv;
-
-		PassConstants mMainPassCB;  // index 0 of pass cbuffer.
-		PassConstants mShadowPassCB;// index 1 of pass cbuffer.
-
-		Camera mCamera;
-		std::unique_ptr<ShadowMap> mShadowMap;
-		std::unique_ptr<Ssao> mSsao;
-
-		DirectX::BoundingSphere mSceneBounds;
-
-		float mLightNearZ = 0.0f;
-		float mLightFarZ = 0.0f;
-		DirectX::XMFLOAT3 mLightPosW;
-		DirectX::XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
-		DirectX::XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
-		DirectX::XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
-
-		float mLightRotationAngle = 0.0f;
-		DirectX::XMFLOAT3 mBaseLightDirections[3] = {
-			DirectX::XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
-			DirectX::XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
-			DirectX::XMFLOAT3(0.0f, -0.707f, -0.707f)
+			std::wstring mMainWndCaption = L"handwork";
+			int mClientWidth = 800;
+			int mClientHeight = 600;
+			POINT mLastMousePos;
+			float mCameraSpeed = 10.0f;
 		};
-		DirectX::XMFLOAT3 mRotatedLightDirections[3];
 
-		POINT mLastMousePos;
-	};
-
+	}	// namespace rendering
 }	// namespace handwork

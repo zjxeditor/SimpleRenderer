@@ -61,9 +61,6 @@
     <ClCompile Include="rendering\camera.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
-    <ClCompile Include="rendering\d3dapp.cpp">
-      <Filter>rendering</Filter>
-    </ClCompile>
     <ClCompile Include="rendering\app.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
@@ -72,6 +69,12 @@
       <Filter>rendering</Filter>
     </ClCompile>
     <ClCompile Include="rendering\ssao.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\deviceresources.cpp">
+      <Filter>rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="rendering\renderresources.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
   </ItemGroup>
@@ -142,9 +145,6 @@
     <ClInclude Include="rendering\camera.h">
       <Filter>rendering</Filter>
     </ClInclude>
-    <ClInclude Include="rendering\d3dapp.h">
-      <Filter>rendering</Filter>
-    </ClInclude>
     <ClInclude Include="rendering\app.h">
       <Filter>rendering</Filter>
     </ClInclude>
@@ -154,6 +154,16 @@
     <ClInclude Include="rendering\ssao.h">
       <Filter>rendering</Filter>
     </ClInclude>
+    <ClInclude Include="rendering\deviceresources.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\bridgestructs.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="rendering\renderresources.h">
+      <Filter>rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="myapp.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\lightingutil.hlsl">
