@@ -20,6 +20,7 @@ namespace handwork
 		enum class RenderLayer : int
 		{
 			Opaque = 0,
+			WireFrame,
 			Debug,
 			Count
 		};
@@ -28,7 +29,7 @@ namespace handwork
 		{
 		public:
 			RenderResources(const std::shared_ptr<DeviceResources>& deviceResource, const std::shared_ptr<Camera> camera,
-				const std::shared_ptr<GameTimer> timer, bool useStandardAssets = false);
+				const std::shared_ptr<GameTimer> timer);
 			void CreateDeviceDependentResources();
 			void CreateWindowSizeDependentResources();
 			void ReleaseDeviceDependentResources();
@@ -42,6 +43,9 @@ namespace handwork
 			void AddGeometryData(const std::vector<Vertex>& vertices, const std::vector<std::uint32_t>& indices,
 				const std::unordered_map<std::string, SubmeshGeometry>& drawArgs, const std::string& name);
 			void AddRenderItem(const std::vector<RenderItemData>& renderItems, const RenderLayer layer);
+			Material* GetMaterial(const std::string& name);
+			MeshGeometry* GetMeshGeometry(const std::string& name);
+
 
 		private:
 			void BuildRootSignature();
@@ -49,8 +53,6 @@ namespace handwork
 			void BuildDescriptorHeaps();
 			void BuildShadersAndInputLayout();
 			void BuildPSOs();
-			void BuildMaterials();
-			void BuildShapeGeometry();
 			void BuildFrameResources();
 			void DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems);
 			void DrawSceneToShadowMap();
@@ -120,7 +122,6 @@ namespace handwork
 			// Manage new material and geometry.
 			int mCurrentMatCBIndex;
 			int mCurrentObjCBIndex;
-			bool mUseStandardAssets;
 		};
 
 	}	// namespace rendering

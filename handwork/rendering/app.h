@@ -52,7 +52,6 @@ namespace handwork
 			MSAATYPE mMsaaType = MSAATYPE::MSAAx4;
 			UINT mMaxRenderWidth = 1920;
 			UINT mMaxRenderHeight = 1080;
-			bool mUseStandardAssets = false;
 
 		private:
 			static App* mApp;

@@ -84,7 +84,7 @@ namespace handwork
 
 			// Init device resources and render resources.
 			mDeviceResources = std::make_shared<DeviceResources>(mMsaaType, mMaxRenderWidth, mMaxRenderHeight);
-			mRenderResources = std::make_shared<RenderResources>(mDeviceResources, mCamera, mGameTimer, mUseStandardAssets);
+			mRenderResources = std::make_shared<RenderResources>(mDeviceResources, mCamera, mGameTimer);
 			mDeviceResources->RegisterDeviceNotify(this);
 			mDeviceResources->SetWindow(mhAppInst, mhMainWnd);
 			mRenderResources->CreateWindowSizeDependentResources();

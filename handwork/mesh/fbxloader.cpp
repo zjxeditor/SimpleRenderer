@@ -2,6 +2,7 @@
 
 #include "fbxloader.h"
 #include "fbxsdk.h"
+#include "../utility/transform.h"
 
 namespace handwork
 {
@@ -28,13 +29,14 @@ namespace handwork
 	};
 
 	// Helper methods
+	// FbxSDK use row vector, our system use column vector, so do transpose.
 	Matrix4x4 ConvertToMatrix4X4(const FbxAMatrix& tf)
 	{
 		auto tranforms = Matrix4x4(
-			(float)tf[0][0], (float)tf[0][1], (float)tf[0][2], (float)tf[0][3],
-			(float)tf[1][0], (float)tf[1][1], (float)tf[1][2], (float)tf[1][3],
-			(float)tf[2][0], (float)tf[2][1], (float)tf[2][2], (float)tf[2][3],
-			(float)tf[3][0], (float)tf[3][1], (float)tf[3][2], (float)tf[3][3]);
+			(float)tf[0][0], (float)tf[1][0], (float)tf[2][0], (float)tf[3][0],
+			(float)tf[0][1], (float)tf[1][1], (float)tf[2][1], (float)tf[3][1],
+			(float)tf[0][2], (float)tf[1][2], (float)tf[2][2], (float)tf[3][2],
+			(float)tf[0][3], (float)tf[1][3], (float)tf[2][3], (float)tf[3][3]);
 		return tranforms;
 	}
 
@@ -53,7 +55,7 @@ namespace handwork
 		return -1;
 	}
 
-	// Method pre-declaration
+	// Method pre-declaration 
 	void BakeTRS(FbxNode* rootNode);
 	void BakeConfigure(FbxNode* node);
 	void ProcessSkeletonHierarchyRecursively(FbxNode* node, int myIndex, int inParentIndex, std::vector<JointInfo>& skeletonInfo);
@@ -62,10 +64,10 @@ namespace handwork
 	void ProcessMesh(FbxNode* node, std::vector<JointInfo>& skeletonInfo, std::vector<MeshVI*>& meshVICache);
 	void ProcessJoints(FbxNode* node, std::vector<MeshVertex>& vertices, std::vector<JointInfo>& skeletonInfo);
 	void PackVI(std::vector<MeshVI*>& meshVICache, std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices);
-	void ReadPosition(FbxMesh* mesh, std::vector<MeshVertex>& vertices);
+	void ReadPosition(FbxMesh* mesh, std::vector<MeshVertex>& vertices, const Transform& world);
 	void ReadIndex(FbxMesh* mesh, std::vector<int>& indices);
-	void ReadNormal(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate = true);
-	void ReadTangent(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate = true);
+	void ReadNormal(FbxMesh* mesh, std::vector<MeshVertex>& vertices, const Transform& world, bool reGenerate = true);
+	void ReadTangent(FbxMesh* mesh, std::vector<MeshVertex>& vertices, const Transform& world, bool reGenerate = true);
 
 	bool ImportFbx(const std::string& filename, float& fileScale, std::vector<MeshJoint>& skeleton,
 		std::vector<MeshVertex>& meshVertices, std::vector<int>& meshIndices)
@@ -256,7 +258,7 @@ namespace handwork
 		node->SetScalingOffset(FbxNode::eDestinationPivot, zero);
 		node->SetRotationPivot(FbxNode::eDestinationPivot, zero);
 		node->SetScalingPivot(FbxNode::eDestinationPivot, zero);
-
+		
 		// This is to import in a system that supports rotation order.
 		// If rotation order is not supported, do this instead:
 		// pNode->SetRotationOrder(FbxNode::eDESTINATION_SET , FbxNode::eEULER_XYZ);
@@ -360,6 +362,10 @@ namespace handwork
 		int triangleCount = mesh->GetPolygonCount();
 		if (triangleCount == 0 || controlPointsCount == 0)
 			return;
+		
+		// Get the world matrix.
+		auto tf = node->EvaluateGlobalTransform(FbxTime(0.0f), FbxNode::eDestinationPivot);
+		Transform world(ConvertToMatrix4X4(tf));
 
 		// Load material
 		MeshVI* currentVI = new MeshVI();
@@ -369,10 +375,10 @@ namespace handwork
 		indices.reserve(triangleCount * 3);
 
 		// Read positions, indices, normals and tangents
-		ReadPosition(mesh, vertices);
+		ReadPosition(mesh, vertices, world);
 		ReadIndex(mesh, indices);
-		ReadNormal(mesh, vertices, true);
-		ReadTangent(mesh, vertices, true);
+		ReadNormal(mesh, vertices, world, true);
+		ReadTangent(mesh, vertices, world, true);
 		
 		// Process joint information
 		ProcessJoints(node, vertices, skeletonInfo);
@@ -457,7 +463,7 @@ namespace handwork
 		}
 	}
 
-	void ReadPosition(FbxMesh* mesh, std::vector<MeshVertex>& vertices)
+	void ReadPosition(FbxMesh* mesh, std::vector<MeshVertex>& vertices, const Transform& world)
 	{
 		FbxVector4* pCtrlPoint = mesh->GetControlPoints();
 		int controlPointsCount = mesh->GetControlPointsCount();
@@ -467,6 +473,7 @@ namespace handwork
 			vertices[i].Position.x = (float)pCtrlPoint[i][0];
 			vertices[i].Position.y = (float)pCtrlPoint[i][1];
 			vertices[i].Position.z = (float)pCtrlPoint[i][2];
+			vertices[i].Position = world(vertices[i].Position, VectorType::Point);
 		}
 	}
 
@@ -482,7 +489,7 @@ namespace handwork
 			}
 	}
 
-	void ReadNormal(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate)
+	void ReadNormal(FbxMesh* mesh, std::vector<MeshVertex>& vertices, const Transform& world, bool reGenerate)
 	{
 		if (mesh->GetElementNormalCount() < 1)
 		{
@@ -512,6 +519,7 @@ namespace handwork
 					vertices[i].Normal.x = (float)leNormal->GetDirectArray()[i][0];
 					vertices[i].Normal.y = (float)leNormal->GetDirectArray()[i][1];
 					vertices[i].Normal.z = (float)leNormal->GetDirectArray()[i][2];
+					vertices[i].Normal = world(vertices[i].Normal, VectorType::Normal);
 				}
 				break;
 			case FbxGeometryElement::eIndexToDirect:
@@ -521,6 +529,7 @@ namespace handwork
 					vertices[i].Normal.x = (float)leNormal->GetDirectArray()[id][0];
 					vertices[i].Normal.y = (float)leNormal->GetDirectArray()[id][1];
 					vertices[i].Normal.z = (float)leNormal->GetDirectArray()[id][2];
+					vertices[i].Normal = world(vertices[i].Normal, VectorType::Normal);
 				}
 				break;
 			default:
@@ -540,6 +549,7 @@ namespace handwork
 						vertices[ctrlPointIndex].Normal.x = (float)leNormal->GetDirectArray()[vertexCounter][0];
 						vertices[ctrlPointIndex].Normal.y = (float)leNormal->GetDirectArray()[vertexCounter][1];
 						vertices[ctrlPointIndex].Normal.z = (float)leNormal->GetDirectArray()[vertexCounter][2];
+						vertices[ctrlPointIndex].Normal = world(vertices[ctrlPointIndex].Normal, VectorType::Normal);
 						++vertexCounter;
 					}
 				break;
@@ -552,6 +562,7 @@ namespace handwork
 						vertices[ctrlPointIndex].Normal.x = (float)leNormal->GetDirectArray()[id][0];
 						vertices[ctrlPointIndex].Normal.y = (float)leNormal->GetDirectArray()[id][1];
 						vertices[ctrlPointIndex].Normal.z = (float)leNormal->GetDirectArray()[id][2];
+						vertices[ctrlPointIndex].Normal = world(vertices[ctrlPointIndex].Normal, VectorType::Normal);
 						++vertexCounter;
 					}
 				break;
@@ -566,7 +577,7 @@ namespace handwork
 		}
 	}
 
-	void ReadTangent(FbxMesh* mesh, std::vector<MeshVertex>& vertices, bool reGenerate)
+	void ReadTangent(FbxMesh* mesh, std::vector<MeshVertex>& vertices, const Transform& world, bool reGenerate)
 	{
 		if (mesh->GetElementTangentCount() < 1)
 		{
@@ -596,6 +607,7 @@ namespace handwork
 					vertices[i].Tangent.x = (float)leTangent->GetDirectArray()[i][0];
 					vertices[i].Tangent.y = (float)leTangent->GetDirectArray()[i][1];
 					vertices[i].Tangent.z = (float)leTangent->GetDirectArray()[i][2];
+					vertices[i].Tangent = world(vertices[i].Tangent, VectorType::Vector);
 				}
 				break;
 			case FbxGeometryElement::eIndexToDirect:
@@ -605,6 +617,7 @@ namespace handwork
 					vertices[i].Tangent.x = (float)leTangent->GetDirectArray()[id][0];
 					vertices[i].Tangent.y = (float)leTangent->GetDirectArray()[id][1];
 					vertices[i].Tangent.z = (float)leTangent->GetDirectArray()[id][2];
+					vertices[i].Tangent = world(vertices[i].Tangent, VectorType::Vector);
 				}
 				break;
 			default:
@@ -623,6 +636,7 @@ namespace handwork
 						vertices[ctrlPointIndex].Tangent.x = (float)leTangent->GetDirectArray()[vertexCounter][0];
 						vertices[ctrlPointIndex].Tangent.y = (float)leTangent->GetDirectArray()[vertexCounter][1];
 						vertices[ctrlPointIndex].Tangent.z = (float)leTangent->GetDirectArray()[vertexCounter][2];
+						vertices[ctrlPointIndex].Tangent = world(vertices[ctrlPointIndex].Tangent, VectorType::Vector);
 						++vertexCounter;
 					}
 				break;
@@ -635,6 +649,7 @@ namespace handwork
 						vertices[ctrlPointIndex].Tangent.x = (float)leTangent->GetDirectArray()[id][0];
 						vertices[ctrlPointIndex].Tangent.y = (float)leTangent->GetDirectArray()[id][1];
 						vertices[ctrlPointIndex].Tangent.z = (float)leTangent->GetDirectArray()[id][2];
+						vertices[ctrlPointIndex].Tangent = world(vertices[ctrlPointIndex].Tangent, VectorType::Vector);
 						++vertexCounter;
 					}
 				break;

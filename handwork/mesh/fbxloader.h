@@ -17,6 +17,7 @@ namespace handwork
 		std::string Name;
 		int Parent;
 		Matrix4x4 GlobalBindposeInverse;	// Transform matrix from mesh space to bone space
+		// The transformation order is TRzRyRxS*v.
 		Vector3f Translation;	// Local translation matrix
 		Vector3f Scaling;		// Local scaling matrix 
 		Vector3f Rotation;		// Local 3 axis rotation in degree

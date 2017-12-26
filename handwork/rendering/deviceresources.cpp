@@ -590,7 +590,7 @@ namespace handwork
 			// The first argument instructs DXGI to block until VSync, putting the application
 			// to sleep until the next VSync. This ensures we don't waste any cycles rendering
 			// frames that will never be displayed to the screen.
-			HRESULT hr = mSwapChain->Present(0, 0);
+			HRESULT hr = mSwapChain->Present(1, 0);
 			// Swap the back and front buffers.
 			mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
 
