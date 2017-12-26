@@ -78,10 +78,10 @@ void MyApp::PreInitialize()
 	mMaxRenderHeight = 1080;
 
 	// Initialize Google's logging library.
-	FLAGS_log_dir = "./";
+	FLAGS_log_dir = "./log/";
 	google::InitGoogleLogging("handwork");
 
-	std::string file = "C:\\Users\\Jx\\Desktop\\hand.fbx";
+	std::string file = "./data/hand.fbx";
 	bool flag = ImportFbx(file, fileScale, MeshSkeleton, MeshVertices, MeshIndices);
 
 	//std::vector<Vector3f> positions(vertices.size());
