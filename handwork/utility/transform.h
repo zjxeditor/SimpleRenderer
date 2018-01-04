@@ -194,6 +194,9 @@ namespace handwork
 				mInv.m[0][1] * x + mInv.m[1][1] * y + mInv.m[2][1] * z,
 				mInv.m[0][2] * x + mInv.m[1][2] * y + mInv.m[2][2] * z);
 			}
+		default:
+			LOG(FATAL) << "No such vector type for vector transform.";
+			return Vector3<T>();
 		}
 	}
 

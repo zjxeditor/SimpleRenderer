@@ -4,6 +4,7 @@
 #include "mesh/fbxloader.h"
 #include "mesh/meshtopology.h"
 #include "utility/stringprint.h"
+#include "mesh/subdivision.h"
 
 using namespace handwork;
 using namespace handwork::rendering;
@@ -68,6 +69,7 @@ DirectX::XMFLOAT3 ConvertToXMFLOAT3(float x, float y, float z)
 std::vector<MeshJoint> MeshSkeleton;
 std::vector<MeshVertex> MeshVertices;
 std::vector<int> MeshIndices;
+std::unique_ptr<SubDivision> MeshSubDiv;
 float fileScale = 0.0f;
 
 void MyApp::PreInitialize()
@@ -81,11 +83,21 @@ void MyApp::PreInitialize()
 	FLAGS_log_dir = "./log/";
 	google::InitGoogleLogging("handwork");
 
+	// Import 3d model
 	std::string file = "./data/hand.fbx";
 	bool flag = ImportFbx(file, fileScale, MeshSkeleton, MeshVertices, MeshIndices);
 
-	//std::vector<Vector3f> positions(vertices.size());
-	//std::transform(vertices.begin(), vertices.end(), positions.begin(), [](MeshVertex& a) {return a.Position; });
+	// Precompute for subdivision
+	std::vector<Vector3f> positions(MeshVertices.size());
+	std::transform(MeshVertices.begin(), MeshVertices.end(), positions.begin(), [](MeshVertex& a) {return a.Position; });
+
+	MeshSubDiv = std::make_unique<SubDivision>(20, KernelType::kCPU, 1, positions.size(), MeshIndices.size() / 3, &MeshIndices[0]);
+	MeshSubDiv->UpdateSrc(&positions[0].x);
+	int a = 0;
+	int b = 0;
+	auto resa = MeshSubDiv->EvaluateLimit(a);
+	auto resb = MeshSubDiv->EvaluateNormal(b);
+
 	//MeshTopology topology(indices.size(), &indices[0], positions.size(), &positions[0]);
 }
 
@@ -133,25 +145,41 @@ void MyApp::AddRenderData()
 
 #pragma region Add Geometry
 
+	int nVertsSD;
+	auto vertsData = reinterpret_cast<const Vector3f*>(MeshSubDiv->EvaluateNormal(nVertsSD));
+	int level = MeshSubDiv->GetTopologyLevelNum() - 1;
+	auto topology = MeshSubDiv->GetTopology(level);
+	for (int i = 0; i < level; ++i)
+	{
+		vertsData += MeshSubDiv->GetTopology(i)->VertsNum;
+	}
+
 	// Add mesh geometry data
 	SubmeshGeometry submesh;
-	submesh.VertexCount = (UINT)MeshVertices.size();
-	submesh.IndexCount = (UINT)MeshIndices.size();
+	/*submesh.VertexCount = (UINT)MeshVertices.size();
+	submesh.IndexCount = (UINT)MeshIndices.size();*/
+	submesh.VertexCount = topology->VertsNum;
+	submesh.IndexCount = topology->FacesNum * 3;
 	submesh.StartIndexLocation = 0;
 	submesh.BaseVertexLocation = 0;
 
 	std::unordered_map<std::string, SubmeshGeometry> drawArgs;
 	drawArgs["mesh"] = submesh;
 
-	std::vector<Vertex> vertices(MeshVertices.size());
-	for (size_t i = 0; i < MeshVertices.size(); ++i)
+	//std::vector<Vertex> vertices(MeshVertices.size());
+	std::vector<Vertex> vertices(topology->VertsNum);
+	for (size_t i = 0; i < vertices.size(); ++i)
 	{
-		vertices[i].Pos = ConvertToXMFLOAT3(MeshVertices[i].Position);
-		vertices[i].Normal = ConvertToXMFLOAT3(MeshVertices[i].Normal);
-		vertices[i].TangentU = ConvertToXMFLOAT3(MeshVertices[i].Tangent);
+		//vertices[i].Pos = ConvertToXMFLOAT3(MeshVertices[i].Position);
+		//vertices[i].Normal = ConvertToXMFLOAT3(MeshVertices[i].Normal);
+		//vertices[i].TangentU = ConvertToXMFLOAT3(MeshVertices[i].Tangent);
+		vertices[i].Pos = ConvertToXMFLOAT3(vertsData[i]);
+		vertices[i].Normal = ConvertToXMFLOAT3(Vector3f(0.0f, 0.0f, 1.0f));
+		vertices[i].TangentU = ConvertToXMFLOAT3(Vector3f(0.0f, 0.0f, 1.0f));
 	}
 	std::vector<std::uint32_t> indices;
-	indices.insert(indices.end(), std::begin(MeshIndices), std::end(MeshIndices));
+	/*indices.insert(indices.end(), std::begin(MeshIndices), std::end(MeshIndices));*/
+	indices.insert(indices.end(), std::begin(topology->Indices), std::end(topology->Indices));
 
 	mRenderResources->AddGeometryData(vertices, indices, drawArgs, "mesh");
 
@@ -245,7 +273,7 @@ void MyApp::AddRenderData()
 	renderItems.clear();
 	std::vector<Matrix4x4> globalTransform(MeshSkeleton.size());
 	std::vector<Vector3f> jointsWorldPos(MeshSkeleton.size());
-	float jointScale = 9.0f;
+	float jointScale = 4.0f;
 	for (size_t i = 0; i < MeshSkeleton.size(); ++i)
 	{
 		Matrix4x4 localTransform = Translate(MeshSkeleton[i].Translation).GetMatrix();

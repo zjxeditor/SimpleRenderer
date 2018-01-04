@@ -77,6 +77,9 @@
     <ClCompile Include="rendering\renderresources.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
+    <ClCompile Include="mesh\subdivision.cpp">
+      <Filter>mesh</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utility\fileutil.h">
@@ -164,6 +167,9 @@
       <Filter>rendering</Filter>
     </ClInclude>
     <ClInclude Include="myapp.h" />
+    <ClInclude Include="mesh\subdivision.h">
+      <Filter>mesh</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="shaders\lightingutil.hlsl">
