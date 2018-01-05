@@ -93,10 +93,10 @@ void MyApp::PreInitialize()
 
 	MeshSubDiv = std::make_unique<SubDivision>(20, KernelType::kCPU, 1, positions.size(), MeshIndices.size() / 3, &MeshIndices[0]);
 	MeshSubDiv->UpdateSrc(&positions[0].x);
-	int a = 0;
+	/*int a = 0;
 	int b = 0;
 	auto resa = MeshSubDiv->EvaluateLimit(a);
-	auto resb = MeshSubDiv->EvaluateNormal(b);
+	auto resb = MeshSubDiv->EvaluateNormal(b);*/
 
 	//MeshTopology topology(indices.size(), &indices[0], positions.size(), &positions[0]);
 }
@@ -170,23 +170,23 @@ void MyApp::AddRenderData()
 	std::vector<Vertex> vertices(topology->VertsNum);
 	for (size_t i = 0; i < vertices.size(); ++i)
 	{
-		//vertices[i].Pos = ConvertToXMFLOAT3(MeshVertices[i].Position);
-		//vertices[i].Normal = ConvertToXMFLOAT3(MeshVertices[i].Normal);
-		//vertices[i].TangentU = ConvertToXMFLOAT3(MeshVertices[i].Tangent);
+		/*vertices[i].Pos = ConvertToXMFLOAT3(MeshVertices[i].Position);
+		vertices[i].Normal = ConvertToXMFLOAT3(MeshVertices[i].Normal);
+		vertices[i].TangentU = ConvertToXMFLOAT3(MeshVertices[i].Tangent);*/
 		vertices[i].Pos = ConvertToXMFLOAT3(vertsData[i]);
 		vertices[i].Normal = ConvertToXMFLOAT3(Vector3f(0.0f, 0.0f, 1.0f));
 		vertices[i].TangentU = ConvertToXMFLOAT3(Vector3f(0.0f, 0.0f, 1.0f));
 	}
 	std::vector<std::uint32_t> indices;
-	/*indices.insert(indices.end(), std::begin(MeshIndices), std::end(MeshIndices));*/
+	//indices.insert(indices.end(), std::begin(MeshIndices), std::end(MeshIndices));
 	indices.insert(indices.end(), std::begin(topology->Indices), std::end(topology->Indices));
 
 	mRenderResources->AddGeometryData(vertices, indices, drawArgs, "mesh");
 
 	// Add common shape geometry data
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 20, 20);
-	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.5f, 1.0f, 20, 20);
+	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 10, 10);
+	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.5f, 1.0f, 10, 10);
 	GeometryGenerator::MeshData quad = geoGen.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
 	 
 	UINT sphereVertexOffset = 0;
@@ -269,6 +269,25 @@ void MyApp::AddRenderData()
 	meshRitem.PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	renderItems.push_back(meshRitem);
 	mRenderResources->AddRenderItem(renderItems, RenderLayer::WireFrame);
+
+	int nLimitSD;
+	auto limitsData = reinterpret_cast<const Vector3f*>(MeshSubDiv->EvaluateLimit(nLimitSD));
+	renderItems.clear();
+	RenderItemData pointInstItem;
+	pointInstItem.GeoName = "shapeGeo";
+	pointInstItem.DrawArgName = "sphere";
+	pointInstItem.PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	pointInstItem.Instances.resize(nLimitSD);
+	for (int i = 0; i < nLimitSD; ++i)
+	{
+		auto& inst = pointInstItem.Instances[i];
+		inst.MatName = "blue";
+		inst.World = ConvertToXMFLOAT4X4(Matrix4x4::Mul(worldBase, Translate(*(limitsData + i * 3)).GetMatrix()));
+		//inst.World = ConvertToXMFLOAT4X4(worldBase);
+	}
+	renderItems.push_back(pointInstItem);
+	mRenderResources->AddRenderItem(renderItems, RenderLayer::OpaqueInst);
+
 
 	renderItems.clear();
 	std::vector<Matrix4x4> globalTransform(MeshSkeleton.size());

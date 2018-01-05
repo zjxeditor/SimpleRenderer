@@ -21,9 +21,19 @@ struct MaterialData
 	float    Roughness;
 };
 
+struct InstanceData
+{
+    float4x4 World;
+    uint MaterialIndex;
+    uint InstPad0;
+    uint InstPad1;
+    uint InstPad2;
+};
+
 StructuredBuffer<MaterialData> gMaterialData : register(t0);
-Texture2D gShadowMap : register(t1);
-Texture2D gSsaoMap : register(t2);
+StructuredBuffer<InstanceData> gInstanceData : register(t1);
+Texture2D gShadowMap : register(t2);
+Texture2D gSsaoMap : register(t3);
 
 SamplerState gsamPointWrap : register(s0);
 SamplerState gsamPointClamp : register(s1);

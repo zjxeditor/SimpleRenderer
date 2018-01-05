@@ -15,6 +15,7 @@ namespace handwork
 			const std::shared_ptr<GameTimer> timer) :
 			mCurrentMatCBIndex(-1),
 			mCurrentObjCBIndex(-1),
+		    mCurrentInstCBIndex(0),
 			mDeviceResources(deviceResource),
 			mCamera(camera),
 			mGameTimer(timer)
@@ -27,6 +28,9 @@ namespace handwork
 			mDirectLights[1].Strength = { 0.1f, 0.1f, 0.1f };
 			mDirectLights[2].Direction = { 0.0f, -0.707f, -0.707f };
 			mDirectLights[2].Strength = { 0.0f, 0.0f, 0.0f };
+
+			mSceneSphereBounds.Radius = -1.0f;
+			mSceneBoxBounds.Extents = XMFLOAT3(-1.0f, -1.0f, -1.0f);
 
 			CreateDeviceDependentResources();
 		}
@@ -142,24 +146,42 @@ namespace handwork
 				CloseHandle(eventHandle);
 			}
 
-			// Update obj constant buffer.
+			// Update obj constant buffer and instance data.
 			auto currObjectCB = mCurrFrameResource->ObjectCB.get();
+			auto currInstCB = mCurrFrameResource->InstanceBuffer.get();
 			for (auto& e : mAllRitems)
 			{
 				// Only update the cbuffer data if the constants have changed.  
 				// This needs to be tracked per frame resource.
-				if (e->NumFramesDirty > 0)
+				if (e->NumFramesDirty <= 0)
+					continue;
+
+				if(e->Instances.size() == 0)
 				{
+					// No instancing.
 					XMMATRIX world = XMLoadFloat4x4(&e->World);
 					ObjectConstants objConstants;
 					XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
 					objConstants.MaterialIndex = e->Mat->MatCBIndex;
-
 					currObjectCB->CopyData(e->ObjCBIndex, objConstants);
-
-					// Next FrameResource need to be updated too.
-					e->NumFramesDirty--;
 				}
+				else
+				{
+					// Instancing.
+					std::vector<InstanceData> instancesData(e->Instances.size());
+					std::transform(e->Instances.begin(), e->Instances.end(), instancesData.begin(), 
+						[](InstanceData& a)
+					{
+						InstanceData b;
+						XMStoreFloat4x4(&b.World, XMMatrixTranspose(XMLoadFloat4x4(&a.World)));
+						b.MaterialIndex = a.MaterialIndex;
+						return b;
+					});
+					currInstCB->CopyContinuousData(e->InstCBIndex, e->Instances.size(), &(instancesData[0]));
+				}
+
+				// Next FrameResource need to be updated too.
+				e->NumFramesDirty--;
 			}
 
 			// Update material constant buffer.
@@ -336,8 +358,10 @@ namespace handwork
 			// set as a root descriptor.
 			auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
 			commandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
+			auto instBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+			commandList->SetGraphicsRootShaderResourceView(3, instBuffer->GetGPUVirtualAddress());
 			// Bind null SRV for shadow map pass.
-			commandList->SetGraphicsRootDescriptorTable(3, mNullSrv);
+			commandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
 			DrawSceneToShadowMap();
 
 			//
@@ -363,20 +387,37 @@ namespace handwork
 			commandList->SetGraphicsRootSignature(mRootSignature.Get());
 			matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
 			commandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
+			instBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+			commandList->SetGraphicsRootShaderResourceView(3, instBuffer->GetGPUVirtualAddress());
 			auto passCB = mCurrFrameResource->PassCB->Resource();
 			commandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
 			CD3DX12_GPU_DESCRIPTOR_HANDLE shadowMapDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 			shadowMapDescriptor.Offset(mShadowMapHeapIndex, mDeviceResources->GetCbvSrvUavSize());
-			commandList->SetGraphicsRootDescriptorTable(3, shadowMapDescriptor);
+			commandList->SetGraphicsRootDescriptorTable(4, shadowMapDescriptor);
 
 			mDeviceResources->PreparePresent();
 
-			commandList->SetPipelineState(mPSOs["opaque"].Get());
-			DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
-			commandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
-			DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::WireFrame]);
-
-			if (mRitemLayer[(int)RenderLayer::Debug].size() > 0)
+			if(mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["opaque"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
+			}
+			if(mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["opaqueInst"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::OpaqueInst]);
+			}
+			if(mRitemLayer[(int)RenderLayer::WireFrame].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["opaque_wireframe"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::WireFrame]);
+			}
+			if(mRitemLayer[(int)RenderLayer::WireFrameInst].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["opaqueInst_wireframe"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::WireFrameInst]);
+			}
+			if (mRitemLayer[(int)RenderLayer::Debug].size() != 0)
 			{
 				commandList->SetPipelineState(mPSOs["debug"].Get());
 				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Debug]);
@@ -483,32 +524,78 @@ namespace handwork
 			for (auto& e : renderItems)
 			{
 				auto item = std::make_unique<RenderItem>();
-				item->World = e.World;
-				item->ObjCBIndex = ++mCurrentObjCBIndex;
-				item->Mat = mMaterials[e.MatName].get();
 				item->Geo = mGeometries[e.GeoName].get();
+				item->SubMesh = &(item->Geo->DrawArgs[e.DrawArgName]);
 				item->PrimitiveType = e.PrimitiveType;
-				item->IndexCount = item->Geo->DrawArgs[e.DrawArgName].IndexCount;
-				item->StartIndexLocation = item->Geo->DrawArgs[e.DrawArgName].StartIndexLocation;
-				item->BaseVertexLocation = item->Geo->DrawArgs[e.DrawArgName].BaseVertexLocation;
+				item->IndexCount = item->SubMesh->IndexCount;
+				item->StartIndexLocation = item->SubMesh->StartIndexLocation;
+				item->BaseVertexLocation = item->SubMesh->BaseVertexLocation;
+				if(e.Instances.size() == 0)
+				{
+					// No instancing.
+					item->World = e.World;
+					item->ObjCBIndex = ++mCurrentObjCBIndex;
+					item->Mat = mMaterials[e.MatName].get();
+				}
+				else
+				{
+					// Instancing.
+					int numInst = (int)e.Instances.size();
+					item->Instances.resize(numInst);
+					for (int i = 0; i < numInst; ++i)
+					{
+						item->Instances[i].World = e.Instances[i].World;
+						item->Instances[i].MaterialIndex = mMaterials[e.Instances[i].MatName]->MatCBIndex;
+					}
+					item->InstCBIndex = mCurrentInstCBIndex;
+					mCurrentInstCBIndex += numInst;
+				}
 
 				// Update scene bounds.
-				if (layer == RenderLayer::Opaque)
+				if (layer != RenderLayer::Debug && layer != RenderLayer::Count)
 				{
-					const XMMATRIX transform = XMLoadFloat4x4(&item->World);
-					BoundingBox box = item->Geo->DrawArgs[e.DrawArgName].BoxBounds;
-					box.Transform(tempBox, transform);
-					BoundingSphere sphere = item->Geo->DrawArgs[e.DrawArgName].SphereBounds;
-					sphere.Transform(tempSphere, transform);
-					if (mRitemLayer[(int)layer].size() == 0)
+					if(item->Instances.size() == 0)
 					{
-						mSceneBoxBounds = tempBox;
-						mSceneSphereBounds = tempSphere;
+						// No instancing.
+						const XMMATRIX transform = XMLoadFloat4x4(&item->World);
+						BoundingBox box = item->SubMesh->BoxBounds;
+						box.Transform(tempBox, transform);
+						BoundingSphere sphere = item->SubMesh->SphereBounds;
+						sphere.Transform(tempSphere, transform);
+
+						if(mSceneSphereBounds.Radius <= 0.0f)
+						{
+							mSceneBoxBounds = tempBox;
+							mSceneSphereBounds = tempSphere;
+						}
+						else
+						{
+							BoundingBox::CreateMerged(mSceneBoxBounds, mSceneBoxBounds, tempBox);
+							BoundingSphere::CreateMerged(mSceneSphereBounds, mSceneSphereBounds, tempSphere);
+						}
 					}
 					else
 					{
-						BoundingBox::CreateMerged(mSceneBoxBounds, mSceneBoxBounds, tempBox);
-						BoundingSphere::CreateMerged(mSceneSphereBounds, mSceneSphereBounds, tempSphere);
+						// Instancing.
+						for(auto& inst : item->Instances)
+						{
+							const XMMATRIX transform = XMLoadFloat4x4(&inst.World);
+							BoundingBox box = item->SubMesh->BoxBounds;
+							box.Transform(tempBox, transform);
+							BoundingSphere sphere = item->SubMesh->SphereBounds;
+							sphere.Transform(tempSphere, transform);
+
+							if (mSceneSphereBounds.Radius <= 0.0f)
+							{
+								mSceneBoxBounds = tempBox;
+								mSceneSphereBounds = tempSphere;
+							}
+							else
+							{
+								BoundingBox::CreateMerged(mSceneBoxBounds, mSceneBoxBounds, tempBox);
+								BoundingSphere::CreateMerged(mSceneSphereBounds, mSceneSphereBounds, tempSphere);
+							}
+						}
 					}
 				}
 
@@ -536,21 +623,22 @@ namespace handwork
 		void RenderResources::BuildRootSignature()
 		{
 			CD3DX12_DESCRIPTOR_RANGE texTable0;
-			texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 1, 0);
+			texTable0.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 2, 0);
 
 			// Root parameter can be a table, root descriptor or root constants.
-			CD3DX12_ROOT_PARAMETER slotRootParameter[4];
+			CD3DX12_ROOT_PARAMETER slotRootParameter[5];
 
 			// Perfomance TIP: Order from most frequent to least frequent.
 			slotRootParameter[0].InitAsConstantBufferView(0);
 			slotRootParameter[1].InitAsConstantBufferView(1);
 			slotRootParameter[2].InitAsShaderResourceView(0);
-			slotRootParameter[3].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
+			slotRootParameter[3].InitAsShaderResourceView(1);
+			slotRootParameter[4].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
 
 			auto staticSamplers = GetStaticSamplers();
 
 			// A root signature is an array of root parameters.
-			CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(4, slotRootParameter,
+			CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(5, slotRootParameter,
 				(UINT)staticSamplers.size(), staticSamplers.data(),
 				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -705,15 +793,19 @@ namespace handwork
 		{
 			mShaders["standardVS"] = d3dUtil::CompileShader(L"shaders\\default.hlsl", nullptr, "VS", "vs_5_1");
 			mShaders["opaquePS"] = d3dUtil::CompileShader(L"shaders\\default.hlsl", nullptr, "PS", "ps_5_1");
+			mShaders["standardInstVS"] = d3dUtil::CompileShader(L"shaders\\default.hlsl", nullptr, "VSInst", "vs_5_1");
+			mShaders["opaqueInstPS"] = d3dUtil::CompileShader(L"shaders\\default.hlsl", nullptr, "PSInst", "ps_5_1");
 
 			mShaders["shadowVS"] = d3dUtil::CompileShader(L"shaders\\shadows.hlsl", nullptr, "VS", "vs_5_1");
 			mShaders["shadowOpaquePS"] = d3dUtil::CompileShader(L"shaders\\shadows.hlsl", nullptr, "PS", "ps_5_1");
+			mShaders["shadowInstVS"] = d3dUtil::CompileShader(L"shaders\\shadows.hlsl", nullptr, "VSInst", "vs_5_1");
 
 			mShaders["debugVS"] = d3dUtil::CompileShader(L"shaders\\debug.hlsl", nullptr, "VS", "vs_5_1");
 			mShaders["debugPS"] = d3dUtil::CompileShader(L"shaders\\debug.hlsl", nullptr, "PS", "ps_5_1");
 
 			mShaders["drawNormalsVS"] = d3dUtil::CompileShader(L"shaders\\drawnormals.hlsl", nullptr, "VS", "vs_5_1");
 			mShaders["drawNormalsPS"] = d3dUtil::CompileShader(L"shaders\\drawnormals.hlsl", nullptr, "PS", "ps_5_1");
+			mShaders["drawNormalsInstVS"] = d3dUtil::CompileShader(L"shaders\\drawnormals.hlsl", nullptr, "VSInst", "vs_5_1");
 
 			mShaders["ssaoVS"] = d3dUtil::CompileShader(L"shaders\\ssao.hlsl", nullptr, "VS", "vs_5_1");
 			mShaders["ssaoPS"] = d3dUtil::CompileShader(L"shaders\\ssao.hlsl", nullptr, "PS", "ps_5_1");
@@ -781,10 +873,30 @@ namespace handwork
 			opaquePsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 			ThrowIfFailed(device->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque_wireframe"])));
 
+			//
+			// PSO for opaque instance objects.
+			//
+
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC opaqueInstPsoDesc = opaquePsoDesc;
+			opaqueInstPsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+			opaqueInstPsoDesc.VS =
+			{
+				reinterpret_cast<BYTE*>(mShaders["standardInstVS"]->GetBufferPointer()),
+				mShaders["standardInstVS"]->GetBufferSize()
+			};
+			opaqueInstPsoDesc.PS =
+			{
+				reinterpret_cast<BYTE*>(mShaders["opaqueInstPS"]->GetBufferPointer()),
+				mShaders["opaqueInstPS"]->GetBufferSize()
+			};
+			ThrowIfFailed(device->CreateGraphicsPipelineState(&opaqueInstPsoDesc, IID_PPV_ARGS(&mPSOs["opaqueInst"])));
+			opaqueInstPsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+			ThrowIfFailed(device->CreateGraphicsPipelineState(&opaqueInstPsoDesc, IID_PPV_ARGS(&mPSOs["opaqueInst_wireframe"])));
 
 			//
 			// PSO for shadow map pass.
 			//
+
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC smapPsoDesc = basePsoDesc;
 			smapPsoDesc.RasterizerState.DepthBias = 100000;
 			smapPsoDesc.RasterizerState.DepthBiasClamp = 0.0f;
@@ -806,8 +918,21 @@ namespace handwork
 			ThrowIfFailed(device->CreateGraphicsPipelineState(&smapPsoDesc, IID_PPV_ARGS(&mPSOs["shadow_opaque"])));
 
 			//
+			// PSO for instance shadow map pass.
+			//
+
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC smapInstPsoDesc = smapPsoDesc;
+			smapInstPsoDesc.VS =
+			{
+				reinterpret_cast<BYTE*>(mShaders["shadowInstVS"]->GetBufferPointer()),
+				mShaders["shadowInstVS"]->GetBufferSize()
+			};
+			ThrowIfFailed(device->CreateGraphicsPipelineState(&smapInstPsoDesc, IID_PPV_ARGS(&mPSOs["shadowInst_opaque"])));
+
+			//
 			// PSO for debug layer.
 			//
+
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC debugPsoDesc = basePsoDesc;
 			debugPsoDesc.pRootSignature = mRootSignature.Get();
 			debugPsoDesc.VS =
@@ -831,6 +956,7 @@ namespace handwork
 			//
 			// PSO for drawing normals.
 			//
+
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC drawNormalsPsoDesc = basePsoDesc;
 			drawNormalsPsoDesc.VS =
 			{
@@ -849,8 +975,21 @@ namespace handwork
 			ThrowIfFailed(device->CreateGraphicsPipelineState(&drawNormalsPsoDesc, IID_PPV_ARGS(&mPSOs["drawNormals"])));
 
 			//
+			// PSO for instance drawing normals.
+			//
+
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC drawNormalsInstPsoDesc = drawNormalsPsoDesc;
+			drawNormalsInstPsoDesc.VS =
+			{
+				reinterpret_cast<BYTE*>(mShaders["drawNormalsInstVS"]->GetBufferPointer()),
+				mShaders["drawNormalsInstVS"]->GetBufferSize()
+			};
+			ThrowIfFailed(device->CreateGraphicsPipelineState(&drawNormalsInstPsoDesc, IID_PPV_ARGS(&mPSOs["drawNormalsInst"])));
+
+			//
 			// PSO for SSAO.
 			//
+
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC ssaoPsoDesc = basePsoDesc;
 			ssaoPsoDesc.InputLayout = { nullptr, 0 };
 			ssaoPsoDesc.pRootSignature = mSsaoRootSignature.Get();
@@ -864,7 +1003,6 @@ namespace handwork
 				reinterpret_cast<BYTE*>(mShaders["ssaoPS"]->GetBufferPointer()),
 				mShaders["ssaoPS"]->GetBufferSize()
 			};
-
 			// SSAO effect does not need the depth buffer.
 			ssaoPsoDesc.DepthStencilState.DepthEnable = false;
 			ssaoPsoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
@@ -877,6 +1015,7 @@ namespace handwork
 			//
 			// PSO for SSAO blur.
 			//
+
 			D3D12_GRAPHICS_PIPELINE_STATE_DESC ssaoBlurPsoDesc = ssaoPsoDesc;
 			ssaoBlurPsoDesc.VS =
 			{
@@ -896,15 +1035,21 @@ namespace handwork
 			for (int i = 0; i < gNumFrameResources; ++i)
 			{
 				mFrameResources.push_back(std::make_unique<FrameResource>(mDeviceResources->GetD3DDevice(),
-					2, (UINT)mAllRitems.size(), (UINT)mMaterials.size()));
+					2, mCurrentObjCBIndex + 1, mCurrentMatCBIndex + 1, mCurrentInstCBIndex));
 			}
 		}
+
 
 		void RenderResources::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
 		{
 			UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+			UINT instElementSize = sizeof(InstanceData);
 
 			auto objectCB = mCurrFrameResource->ObjectCB->Resource();
+			auto instanceBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+
+			D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress();
+			D3D12_GPU_VIRTUAL_ADDRESS instBufferAddress = instanceBuffer->GetGPUVirtualAddress();
 
 			// For each render item...
 			for (size_t i = 0; i < ritems.size(); ++i)
@@ -915,13 +1060,23 @@ namespace handwork
 				cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 				cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-				D3D12_GPU_VIRTUAL_ADDRESS objCBAddress = objectCB->GetGPUVirtualAddress() + ri->ObjCBIndex*objCBByteSize;
-
-				cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
-
-				cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+				if(ri->Instances.size() == 0)
+				{
+					// No instancing.
+					cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress + ri->ObjCBIndex * objCBByteSize);
+					cmdList->SetGraphicsRootShaderResourceView(3, instBufferAddress);
+					cmdList->DrawIndexedInstanced(ri->IndexCount, 1, ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+				}
+				else
+				{
+					// Instancing.
+					cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
+					cmdList->SetGraphicsRootShaderResourceView(3, instBufferAddress + ri->InstCBIndex * instElementSize);
+					cmdList->DrawIndexedInstanced(ri->IndexCount, ri->Instances.size(), ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+				}
 			}
 		}
+
 
 		void RenderResources::DrawSceneToShadowMap()
 		{
@@ -944,8 +1099,16 @@ namespace handwork
 			// Specify the buffers we are going to render to.
 			commandList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
 
-			commandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
-			DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
+			if(mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
+			}
+			if(mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["shadowInst_opaque"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::OpaqueInst]);
+			}
 
 			// Change back to GENERIC_READ so we can read the texture in a shader.
 			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mShadowMap->Resource(),
@@ -959,7 +1122,6 @@ namespace handwork
 			// Bind the constant buffer for this pass.
 			auto passCB = mCurrFrameResource->PassCB->Resource();
 			commandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
-
 
 			auto normalMap = mSsao->NormalMap();
 			auto normalMapRtv = mSsao->NormalMapRtv();
@@ -977,8 +1139,16 @@ namespace handwork
 			// Specify the buffers we are going to render to.
 			commandList->OMSetRenderTargets(1, &normalMapRtv, true, &mDeviceResources->Dsv());
 
-			commandList->SetPipelineState(mPSOs["drawNormals"].Get());
-			DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
+			if(mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["drawNormals"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
+			}
+			if(mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
+			{
+				commandList->SetPipelineState(mPSOs["drawNormalsInst"].Get());
+				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::OpaqueInst]);
+			}
 
 			// Change back to GENERIC_READ so we can read the texture in a shader.
 			commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(normalMap,

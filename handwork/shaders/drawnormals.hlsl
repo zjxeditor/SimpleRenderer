@@ -28,13 +28,11 @@ struct VertexOut
     float3 TangentW : TANGENT;
 };
 
+
 VertexOut VS(VertexIn vin)
 {
     VertexOut vout = (VertexOut) 0.0f;
 
-	// Fetch the material data.
-    MaterialData matData = gMaterialData[gMaterialIndex];
-	
     // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
     vout.NormalW = mul(vin.NormalL, (float3x3) gWorld);
     vout.TangentW = mul(vin.TangentU, (float3x3) gWorld);
@@ -48,10 +46,6 @@ VertexOut VS(VertexIn vin)
 
 float4 PS(VertexOut pin) : SV_Target
 {
-	// Fetch the material data.
-    MaterialData matData = gMaterialData[gMaterialIndex];
-    float4 diffuseAlbedo = matData.DiffuseAlbedo;
-	
 	// Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 	
@@ -60,4 +54,23 @@ float4 PS(VertexOut pin) : SV_Target
     // Write normal in view space coordinates
     float3 normalV = mul(pin.NormalW, (float3x3) gView);
     return float4(normalV, 0.0f);
+}
+
+VertexOut VSInst(VertexIn vin, uint instanceID : SV_InstanceID)
+{
+    VertexOut vout = (VertexOut) 0.0f;
+
+    // Fetch instance data.
+    InstanceData instData = gInstanceData[instanceID];
+    float4x4 world = instData.World;
+	
+    // Assumes nonuniform scaling; otherwise, need to use inverse-transpose of world matrix.
+    vout.NormalW = mul(vin.NormalL, (float3x3) world);
+    vout.TangentW = mul(vin.TangentU, (float3x3) world);
+
+    // Transform to homogeneous clip space.
+    float4 posW = mul(float4(vin.PosL, 1.0f), world);
+    vout.PosH = mul(posW, gViewProj);
+	
+    return vout;
 }

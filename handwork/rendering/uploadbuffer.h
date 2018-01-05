@@ -61,6 +61,14 @@ namespace handwork
 				memcpy(&mMappedData[elementIndex*mElementByteSize], &data, sizeof(T));
 			}
 
+			// Cannot be used for constant buffer.
+			void CopyContinuousData(int startIndex, int number, const T* data)
+			{
+				if (mIsConstantBuffer)
+					throw new std::exception("Cannot use \"CopyContinuousData\" method in \"UploadBuffer\" for constant buffer.");
+				memcpy(&mMappedData[startIndex*mElementByteSize], data, mElementByteSize*number);
+			}
+
 		private:
 			Microsoft::WRL::ComPtr<ID3D12Resource> mUploadBuffer;
 			BYTE* mMappedData = nullptr;

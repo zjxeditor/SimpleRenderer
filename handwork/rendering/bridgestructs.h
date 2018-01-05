@@ -84,6 +84,15 @@ namespace handwork
 			float Roughness = 0.5f;
 		};
 
+		struct InstanceData
+		{
+			DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
+			UINT     MaterialIndex;
+			UINT     InstPad0;
+			UINT     InstPad1;
+			UINT     InstPad2;
+		};
+
 		struct Vertex
 		{
 			DirectX::XMFLOAT3 Pos;

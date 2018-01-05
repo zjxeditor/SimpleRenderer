@@ -21,6 +21,8 @@ namespace handwork
 		{
 			Opaque = 0,
 			WireFrame,
+			OpaqueInst,
+			WireFrameInst,
 			Debug,
 			Count
 		};
@@ -101,7 +103,7 @@ namespace handwork
 			PassConstants mMainPassCB;  // index 0 of pass cbuffer.
 			PassConstants mShadowPassCB;// index 1 of pass cbuffer.
 
-										// Shadow and ssao helpers.
+			// Shadow and ssao helpers.
 			std::unique_ptr<ShadowMap> mShadowMap;
 			std::unique_ptr<Ssao> mSsao;
 			DirectX::BoundingSphere mSceneSphereBounds;
@@ -122,6 +124,7 @@ namespace handwork
 			// Manage new material and geometry.
 			int mCurrentMatCBIndex;
 			int mCurrentObjCBIndex;
+			int mCurrentInstCBIndex;
 		};
 
 	}	// namespace rendering
