@@ -49,7 +49,7 @@ namespace handwork
 			mShadowMap.reset();
 			mSsao.reset();
 			mShadowMap = std::make_unique<ShadowMap>(device, 2048, 2048);
-			mSsao = std::make_unique<Ssao>(device, commandList, renderSize.w, renderSize.h);
+			mSsao = std::make_unique<Ssao>(device, commandList, renderSize.x, renderSize.y);
 
 			BuildRootSignature();
 			BuildSsaoRootSignature();
@@ -70,13 +70,13 @@ namespace handwork
 
 		void RenderResources::CreateWindowSizeDependentResources()
 		{
-			Size2i renderSize = mDeviceResources->GetRenderTargetSize();
-			float aspect = (float)renderSize.w / renderSize.h;
-			mCamera->SetLens(0.25f*MathHelper::Pi, aspect, 1.0f, 1000.0f);
+			Vector2i renderSize = mDeviceResources->GetRenderTargetSize();
+			float aspect = (float)renderSize.x / renderSize.y;
+			mCamera->SetLens(45.0f, aspect, 1.0f, 1000.0f);
 
 			if (mSsao != nullptr)
 			{
-				mSsao->OnResize(renderSize.w, renderSize.h);
+				mSsao->OnResize(renderSize.x, renderSize.y);
 				// Resources changed, so need to rebuild descriptors.
 				mSsao->RebuildDescriptors(mDeviceResources->DepthStencilBuffer());
 			}
@@ -130,7 +130,7 @@ namespace handwork
 
 		void RenderResources::Update()
 		{
-			Size2i renderSize = mDeviceResources->GetRenderTargetSize();
+			Vector2i renderSize = mDeviceResources->GetRenderTargetSize();
 
 			// Cycle through the circular frame resource array.
 			mCurrFrameResourceIndex = (mCurrFrameResourceIndex + 1) % gNumFrameResources;
@@ -159,25 +159,15 @@ namespace handwork
 				if(e->Instances.size() == 0)
 				{
 					// No instancing.
-					XMMATRIX world = XMLoadFloat4x4(&e->World);
 					ObjectConstants objConstants;
-					XMStoreFloat4x4(&objConstants.World, XMMatrixTranspose(world));
+					objConstants.World = e->World;
 					objConstants.MaterialIndex = e->Mat->MatCBIndex;
 					currObjectCB->CopyData(e->ObjCBIndex, objConstants);
 				}
 				else
 				{
 					// Instancing.
-					std::vector<InstanceData> instancesData(e->Instances.size());
-					std::transform(e->Instances.begin(), e->Instances.end(), instancesData.begin(), 
-						[](InstanceData& a)
-					{
-						InstanceData b;
-						XMStoreFloat4x4(&b.World, XMMatrixTranspose(XMLoadFloat4x4(&a.World)));
-						b.MaterialIndex = a.MaterialIndex;
-						return b;
-					});
-					currInstCB->CopyContinuousData(e->InstCBIndex, e->Instances.size(), &(instancesData[0]));
+					currInstCB->CopyContinuousData(e->InstCBIndex, e->Instances.size(), &(e->Instances[0]));
 				}
 
 				// Next FrameResource need to be updated too.
@@ -207,16 +197,15 @@ namespace handwork
 
 			// Update shadow transform.
 			// Only the first "main" light casts a shadow.
-			XMVECTOR lightDir = XMLoadFloat3(&mDirectLights[0].Direction);
-			XMVECTOR targetPos = XMLoadFloat3(&mSceneSphereBounds.Center);
-			XMVECTOR lightPos = XMVectorAdd(targetPos, -2.0f*mSceneSphereBounds.Radius*lightDir);
-			XMVECTOR lightUp = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-			XMMATRIX lightView = XMMatrixLookAtLH(lightPos, targetPos, lightUp);
-			XMStoreFloat3(&mLightPosW, lightPos);
+			Vector3f lightDir = mDirectLights[0].Direction;
+			Vector3f targetPos = Vector3f(mSceneSphereBounds.Center.x, mSceneSphereBounds.Center.y, mSceneSphereBounds.Center.z);
+			Vector3f lightPos = targetPos - 2.0f* mSceneSphereBounds.Radius * lightDir;
+			Vector3f lightUp = Vector3f(0.0f, 1.0f, 0.0f);
+			Matrix4x4 lightView = d3dUtil::CameraLookAt(lightPos, targetPos, lightUp);
+			mLightPosW = lightPos;
 
 			// Transform bounding sphere to light space.
-			XMFLOAT3 sphereCenterLS;
-			XMStoreFloat3(&sphereCenterLS, XMVector3TransformCoord(targetPos, lightView));
+			Vector3f sphereCenterLS = Transform(lightView, Matrix4x4())(targetPos, VectorType::Point);
 
 			// Ortho frustum in light space encloses scene.
 			float l = sphereCenterLS.x - mSceneSphereBounds.Radius;
@@ -228,47 +217,47 @@ namespace handwork
 
 			mLightNearZ = n;
 			mLightFarZ = f;
-			XMMATRIX lightProj = XMMatrixOrthographicOffCenterLH(l, r, b, t, n, f);
+			Matrix4x4 lightProj = OrthographicOffCenter(l, r, b, t, n, f).GetMatrix();
 
 			// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
-			XMMATRIX T(
-				0.5f, 0.0f, 0.0f, 0.0f,
-				0.0f, -0.5f, 0.0f, 0.0f,
+			Matrix4x4 T(
+				0.5f, 0.0f, 0.0f, 0.5f,
+				0.0f, -0.5f, 0.0f, 0.5f,
 				0.0f, 0.0f, 1.0f, 0.0f,
-				0.5f, 0.5f, 0.0f, 1.0f);
+				0.0f, 0.0f, 0.0f, 1.0f);
 
-			XMMATRIX S = lightView * lightProj*T;
-			XMStoreFloat4x4(&mLightView, lightView);
-			XMStoreFloat4x4(&mLightProj, lightProj);
-			XMStoreFloat4x4(&mShadowTransform, S);
+			Matrix4x4 S = Matrix4x4::Mul(Matrix4x4::Mul(T, lightProj), lightView);
+			mLightView = lightView;
+			mLightProj = lightProj;
+			mShadowTransform = S;
 
 			// Update main pass constant buffer.
-			XMMATRIX view = mCamera->GetView();
-			XMMATRIX proj = mCamera->GetProj();
-			XMMATRIX viewProj = XMMatrixMultiply(view, proj);
-			XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
-			XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
-			XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+			Matrix4x4 view = mCamera->GetView();
+			Matrix4x4 proj = mCamera->GetProj();
+			Matrix4x4 viewProj = Matrix4x4::Mul(proj, view);
+			Matrix4x4 invView = Inverse(view);
+			Matrix4x4 invProj = Inverse(proj);
+			Matrix4x4 invViewProj = Inverse(viewProj);
 			// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
-			T = XMMATRIX(
-				0.5f, 0.0f, 0.0f, 0.0f,
-				0.0f, -0.5f, 0.0f, 0.0f,
+			T = Matrix4x4(
+				0.5f, 0.0f, 0.0f, 0.5f,
+				0.0f, -0.5f, 0.0f, 0.5f,
 				0.0f, 0.0f, 1.0f, 0.0f,
-				0.5f, 0.5f, 0.0f, 1.0f);
-			XMMATRIX viewProjTex = XMMatrixMultiply(viewProj, T);
-			XMMATRIX shadowTransform = XMLoadFloat4x4(&mShadowTransform);
+				0.0f, 0.0f, 0.0f, 1.0f);
+			Matrix4x4 viewProjTex = Matrix4x4::Mul(T, viewProj);
+			Matrix4x4 shadowTransform = mShadowTransform;
 
-			XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
-			XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
-			XMStoreFloat4x4(&mMainPassCB.Proj, XMMatrixTranspose(proj));
-			XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
-			XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
-			XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
-			XMStoreFloat4x4(&mMainPassCB.ViewProjTex, XMMatrixTranspose(viewProjTex));
-			XMStoreFloat4x4(&mMainPassCB.ShadowTransform, XMMatrixTranspose(shadowTransform));
-			mMainPassCB.EyePosW = mCamera->GetPosition3f();
-			mMainPassCB.RenderTargetSize = XMFLOAT2((float)renderSize.w, (float)renderSize.h);
-			mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / renderSize.w, 1.0f / renderSize.h);
+			mMainPassCB.View = view;
+			mMainPassCB.InvView = invView;
+			mMainPassCB.Proj = proj;
+			mMainPassCB.InvProj = invProj;
+			mMainPassCB.ViewProj = viewProj;
+			mMainPassCB.InvViewProj = invViewProj;
+			mMainPassCB.ViewProjTex = viewProjTex;
+			mMainPassCB.ShadowTransform = shadowTransform;
+			mMainPassCB.EyePosW = mCamera->GetPosition();
+			mMainPassCB.RenderTargetSize = Vector2f((float)renderSize.x, (float)renderSize.y);
+			mMainPassCB.InvRenderTargetSize = Vector2f(1.0f / renderSize.x, 1.0f / renderSize.y);
 			mMainPassCB.NearZ = 1.0f;
 			mMainPassCB.FarZ = 1000.0f;
 			mMainPassCB.TotalTime = mGameTimer->TotalTime();
@@ -282,23 +271,23 @@ namespace handwork
 			currPassCB->CopyData(0, mMainPassCB);
 
 			// Update shadow pass constant buffer.
-			view = XMLoadFloat4x4(&mLightView);
-			proj = XMLoadFloat4x4(&mLightProj);
-			viewProj = XMMatrixMultiply(view, proj);
-			invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
-			invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
-			invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+			view = mLightView;
+			proj = mLightProj;
+			viewProj = Matrix4x4::Mul(proj, view);
+			invView = Inverse(view);
+			invProj = Inverse(proj);
+			invViewProj = Inverse(viewProj);
 			UINT w = mShadowMap->Width();
 			UINT h = mShadowMap->Height();
-			XMStoreFloat4x4(&mShadowPassCB.View, XMMatrixTranspose(view));
-			XMStoreFloat4x4(&mShadowPassCB.InvView, XMMatrixTranspose(invView));
-			XMStoreFloat4x4(&mShadowPassCB.Proj, XMMatrixTranspose(proj));
-			XMStoreFloat4x4(&mShadowPassCB.InvProj, XMMatrixTranspose(invProj));
-			XMStoreFloat4x4(&mShadowPassCB.ViewProj, XMMatrixTranspose(viewProj));
-			XMStoreFloat4x4(&mShadowPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+			mShadowPassCB.View = view;
+			mShadowPassCB.InvView = invView;
+			mShadowPassCB.Proj = proj;
+			mShadowPassCB.InvProj = invProj;
+			mShadowPassCB.ViewProj = viewProj;
+			mShadowPassCB.InvViewProj = invViewProj;
 			mShadowPassCB.EyePosW = mLightPosW;
-			mShadowPassCB.RenderTargetSize = XMFLOAT2((float)w, (float)h);
-			mShadowPassCB.InvRenderTargetSize = XMFLOAT2(1.0f / w, 1.0f / h);
+			mShadowPassCB.RenderTargetSize = Vector2f((float)w, (float)h);
+			mShadowPassCB.InvRenderTargetSize = Vector2f(1.0f / w, 1.0f / h);
 			mShadowPassCB.NearZ = mLightNearZ;
 			mShadowPassCB.FarZ = mLightFarZ;
 
@@ -307,22 +296,27 @@ namespace handwork
 
 			// Update ssao constant buffer.
 			SsaoConstants ssaoCB;
-			XMMATRIX P = mCamera->GetProj();
+			Matrix4x4 P = mCamera->GetProj();
 			// Transform NDC space [-1,+1]^2 to texture space [0,1]^2
-			T = XMMATRIX(
-				0.5f, 0.0f, 0.0f, 0.0f,
-				0.0f, -0.5f, 0.0f, 0.0f,
+			T = Matrix4x4(
+				0.5f, 0.0f, 0.0f, 0.5f,
+				0.0f, -0.5f, 0.0f, 0.5f,
 				0.0f, 0.0f, 1.0f, 0.0f,
-				0.5f, 0.5f, 0.0f, 1.0f);
+				0.0f, 0.0f, 0.0f, 1.0f);
 			ssaoCB.Proj = mMainPassCB.Proj;
 			ssaoCB.InvProj = mMainPassCB.InvProj;
-			XMStoreFloat4x4(&ssaoCB.ProjTex, XMMatrixTranspose(P*T));
+			ssaoCB.ProjTex = Matrix4x4::Mul(T, P);
 			mSsao->GetOffsetVectors(ssaoCB.OffsetVectors);
 			auto blurWeights = mSsao->CalcGaussWeights(2.5f);
-			ssaoCB.BlurWeights[0] = XMFLOAT4(&blurWeights[0]);
-			ssaoCB.BlurWeights[1] = XMFLOAT4(&blurWeights[4]);
-			ssaoCB.BlurWeights[2] = XMFLOAT4(&blurWeights[8]);
-			ssaoCB.InvRenderTargetSize = XMFLOAT2(1.0f / mSsao->SsaoMapWidth(), 1.0f / mSsao->SsaoMapHeight());
+			for (int i = 0; i < (int)blurWeights.size(); ++i)
+			{
+				int blurRow = i / 4;
+				int blurCol = i - blurRow * 4;
+				if (blurRow > 2 || blurCol > 3)
+					continue;
+				ssaoCB.BlurWeights[blurRow][blurCol] = blurWeights[i];
+			}
+			ssaoCB.InvRenderTargetSize = Vector2f(1.0f / mSsao->SsaoMapWidth(), 1.0f / mSsao->SsaoMapHeight());
 			// Coordinates given in view space.
 			ssaoCB.OcclusionRadius = 0.5f;
 			ssaoCB.OcclusionFadeStart = 0.2f;
@@ -508,8 +502,8 @@ namespace handwork
 			geo->DrawArgs = drawArgs;
 			for (auto& e : geo->DrawArgs)
 			{
-				BoundingBox::CreateFromPoints(e.second.BoxBounds, e.second.VertexCount, &vertices[e.second.BaseVertexLocation].Pos, sizeof(Vertex));
-				BoundingSphere::CreateFromPoints(e.second.SphereBounds, e.second.VertexCount, &vertices[e.second.BaseVertexLocation].Pos, sizeof(Vertex));
+				BoundingBox::CreateFromPoints(e.second.BoxBounds, e.second.VertexCount, reinterpret_cast<const XMFLOAT3*>(&vertices[e.second.BaseVertexLocation].Pos), sizeof(Vertex));
+				BoundingSphere::CreateFromPoints(e.second.SphereBounds, e.second.VertexCount, reinterpret_cast<const XMFLOAT3*>(&vertices[e.second.BaseVertexLocation].Pos), sizeof(Vertex));
 			}
 
 			if (mGeometries.find(geo->Name) != mGeometries.end())
@@ -521,6 +515,7 @@ namespace handwork
 		{
 			BoundingBox tempBox;
 			BoundingSphere tempSphere;
+			XMFLOAT4X4 tempCache;
 			for (auto& e : renderItems)
 			{
 				auto item = std::make_unique<RenderItem>();
@@ -557,7 +552,8 @@ namespace handwork
 					if(item->Instances.size() == 0)
 					{
 						// No instancing.
-						const XMMATRIX transform = XMLoadFloat4x4(&item->World);
+						tempCache = d3dUtil::ConvertToXMFLOAT4x4(item->World);
+						const XMMATRIX transform = XMLoadFloat4x4(&tempCache);
 						BoundingBox box = item->SubMesh->BoxBounds;
 						box.Transform(tempBox, transform);
 						BoundingSphere sphere = item->SubMesh->SphereBounds;
@@ -579,7 +575,8 @@ namespace handwork
 						// Instancing.
 						for(auto& inst : item->Instances)
 						{
-							const XMMATRIX transform = XMLoadFloat4x4(&inst.World);
+							tempCache = d3dUtil::ConvertToXMFLOAT4x4(inst.World);
+							const XMMATRIX transform = XMLoadFloat4x4(&tempCache);
 							BoundingBox box = item->SubMesh->BoxBounds;
 							box.Transform(tempBox, transform);
 							BoundingSphere sphere = item->SubMesh->SphereBounds;

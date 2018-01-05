@@ -4,6 +4,7 @@
 
 #include "rendering/app.h"
 #include "rendering/d3dutil.h"
+#include "utility/transform.h"
 
 namespace handwork
 {
@@ -23,10 +24,10 @@ namespace handwork
 
 	private:
 		float mLightRotationAngle = 0.0f;
-		DirectX::XMFLOAT3 mBaseLightDirections[3] = {
-			DirectX::XMFLOAT3(0.57735f, -0.57735f, 0.57735f),
-			DirectX::XMFLOAT3(-0.57735f, -0.57735f, 0.57735f),
-			DirectX::XMFLOAT3(0.0f, -0.707f, -0.707f)
+		Vector3f mBaseLightDirections[3] = {
+			Vector3f(0.57735f, -0.57735f, 0.57735f),
+			Vector3f(-0.57735f, -0.57735f, 0.57735f),
+			Vector3f(0.0f, -0.707f, -0.707f)
 		};
 		handwork::rendering::Light mDirectLights[3];
 	};
@@ -52,12 +53,10 @@ namespace handwork
 
 		// Animate the lights (and hence shadows).
 		mLightRotationAngle += 0.1f*mGameTimer->DeltaTime();
-		DirectX::XMMATRIX R = DirectX::XMMatrixRotationY(mLightRotationAngle);
+		auto R = RotateY(Degrees(mLightRotationAngle));
 		for (int i = 0; i < 3; ++i)
 		{
-			DirectX::XMVECTOR lightDir = XMLoadFloat3(&mBaseLightDirections[i]);
-			lightDir = XMVector3TransformNormal(lightDir, R);
-			XMStoreFloat3(&mDirectLights[i].Direction, lightDir);
+			mDirectLights[i].Direction = R(mBaseLightDirections[i], VectorType::Vector);
 		}
 
 		mRenderResources->SetLights(&mDirectLights[0]);

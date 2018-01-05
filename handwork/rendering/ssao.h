@@ -26,7 +26,7 @@ namespace handwork
 			UINT SsaoMapWidth()const;
 			UINT SsaoMapHeight()const;
 
-			void GetOffsetVectors(DirectX::XMFLOAT4 offsets[14]);
+			void GetOffsetVectors(Vector4f offsets[14]);
 			std::vector<float> CalcGaussWeights(float sigma);
 
 			ID3D12Resource* NormalMap();
@@ -115,7 +115,7 @@ namespace handwork
 			UINT mRenderTargetWidth;
 			UINT mRenderTargetHeight;
 
-			DirectX::XMFLOAT4 mOffsets[14];
+			Vector4f mOffsets[14];
 
 			D3D12_VIEWPORT mViewport;
 			D3D12_RECT mScissorRect;

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "d3dutil.h"
-#include "mathhelper.h"
 #include "uploadbuffer.h"
 
 namespace handwork

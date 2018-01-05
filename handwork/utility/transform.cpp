@@ -236,10 +236,10 @@ namespace handwork
 
 	Transform Orthographic(float zNear, float zFar) 
 	{
-		return Scale(1, 1, 1 / (zFar - zNear)) * Translate(Vector3f(0, 0, -zNear));
+		return Scale(1, 1, 1 / (zFar - zNear)) * Translate(Vector3f(0, 0, -zNear)); 
 	}
 
-	Transform Perspective(float fov, float n, float f) 
+	Transform Perspective(float fov, float n, float f, float aspect)
 	{
 		// Perform projective divide for perspective projection
 		Matrix4x4 persp(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, f / (f - n), -f * n / (f - n),
@@ -247,7 +247,17 @@ namespace handwork
 
 		// Scale canonical perspective view to specified field of view
 		float invTanAng = 1 / std::tan(Radians(fov) / 2);
-		return Scale(invTanAng, invTanAng, 1) * Transform(persp);
+		return Scale(invTanAng / aspect, invTanAng, 1) * Transform(persp);
+	}
+
+	Transform OrthographicOffCenter(float l, float r, float b, float t, float n, float f)
+	{
+		float rw = 1.0f / (r - l);
+		float rh = 1.0f / (t - b);
+		float frange = 1.0f / (f - n);
+
+		Matrix4x4 m(rw + rw, 0, 0, -(l + r)*rw, 0, rh + rh, 0, -(b + t)*rh, 0, 0, frange, -n * frange, 0, 0, 0, 1);
+		return Transform(m);
 	}
 
 }	// namespace handwork

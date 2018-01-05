@@ -265,10 +265,89 @@ namespace handwork
 		return os;
 	}
 
+	template <typename T>
+	class Vector4
+	{
+	public:
+		// Vector4 Public Methods
+		T operator[](int i) const
+		{
+			DCHECK(i >= 0 && i <= 3);
+			if (i == 0) return x;
+			if (i == 1) return y;
+			if (i == 2) return z;
+			return w;
+		}
+		T &operator[](int i)
+		{
+			DCHECK(i >= 0 && i <= 3);
+			if (i == 0) return x;
+			if (i == 1) return y;
+			if (i == 2) return z;
+			return w;
+		}
+		Vector4() { x = y = z = 0; w = 1; }
+		Vector4(T x, T y, T z, T w) : x(x), y(y), z(z), w(w) { DCHECK(!HasNaNs()); }
+		Vector4(const Vector3<T>& v, T w = 0) : x(v.x), y(v.y), z(v.z), w(w) { DCHECK(!HasNaNs()); }
+		bool HasNaNs() const { return isNaN(x) || isNaN(y) || isNaN(z) || isNaN(w); }
+#ifdef _DEBUG
+		// The default versions of these are fine for release builds; for debug
+		// we define them so that we can add the Assert checks.
+		Vector4(const Vector4<T> &v)
+		{
+			DCHECK(!v.HasNaNs());
+			x = v.x;
+			y = v.y;
+			z = v.z;
+			w = v.w;
+		}
+
+		Vector4<T> &operator=(const Vector4<T> &v)
+		{
+			DCHECK(!v.HasNaNs());
+			x = v.x;
+			y = v.y;
+			z = v.z;
+			w = v.w;
+			return *this;
+		}
+#endif  // !NDEBUG
+		
+		bool operator==(const Vector4<T> &v) const
+		{
+			return x == v.x && y == v.y && z == v.z && w == v.w;
+		}
+		bool operator!=(const Vector3<T> &v) const
+		{
+			return x != v.x || y != v.y || z != v.z || w != v.w;
+		}
+
+		inline Vector3<T> GetXYZ() { return Vector3<T>(x, y, z); }
+
+		// Vector4 Public Data
+		T x, y, z, w;
+	};
+
+	template <typename T>
+	inline std::ostream &operator<<(std::ostream &os, const Vector4<T> &v)
+	{
+		os << "[ " << v.x << ", " << v.y << ", " << v.z << ", " << v.w << " ]";
+		return os;
+	}
+
+	template <>
+	inline std::ostream &operator<<(std::ostream &os, const Vector4<float> &v)
+	{
+		os << StringPrintf("[ %f, %f, %f, %f ]", v.x, v.y, v.z, v.w);
+		return os;
+	}
+
 	typedef Vector2<float> Vector2f;
 	typedef Vector2<int> Vector2i;
 	typedef Vector3<float> Vector3f;
 	typedef Vector3<int> Vector3i;
+	typedef Vector4<float> Vector4f;
+	typedef Vector4<int> Vector4i;
 
 	// Geometry Inline Functions
 	template <typename T, typename U>

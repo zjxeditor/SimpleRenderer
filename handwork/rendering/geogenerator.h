@@ -11,8 +11,8 @@
 #pragma once
 
 #include <cstdint>
-#include <DirectXMath.h>
 #include <vector>
+#include "mathhelper.h"
 
 namespace handwork
 {
@@ -29,10 +29,10 @@ namespace handwork
 			{
 				Vertex() {}
 				Vertex(
-					const DirectX::XMFLOAT3& p,
-					const DirectX::XMFLOAT3& n,
-					const DirectX::XMFLOAT3& t,
-					const DirectX::XMFLOAT2& uv) :
+					const Vector3f& p,
+					const Vector3f& n,
+					const Vector3f& t,
+					const Vector2f& uv) :
 					Position(p),
 					Normal(n),
 					TangentU(t),
@@ -47,10 +47,10 @@ namespace handwork
 					TangentU(tx, ty, tz),
 					TexC(u, v) {}
 
-				DirectX::XMFLOAT3 Position;
-				DirectX::XMFLOAT3 Normal;
-				DirectX::XMFLOAT3 TangentU;
-				DirectX::XMFLOAT2 TexC;
+				Vector3f Position;
+				Vector3f Normal;
+				Vector3f TangentU;
+				Vector2f TexC;
 			};
 
 			struct MeshData
@@ -115,6 +115,7 @@ namespace handwork
 			Vertex MidPoint(const Vertex& v0, const Vertex& v1);
 			void BuildCylinderTopCap(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, MeshData& meshData);
 			void BuildCylinderBottomCap(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, MeshData& meshData);
+			const float TwoPi = 2 * Pi;
 		};
 
 	}	// namespace rendering

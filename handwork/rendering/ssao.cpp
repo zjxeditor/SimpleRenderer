@@ -35,7 +35,7 @@ namespace handwork
 			return mRenderTargetHeight / 2;
 		}
 
-		void Ssao::GetOffsetVectors(DirectX::XMFLOAT4 offsets[14])
+		void Ssao::GetOffsetVectors(Vector4f offsets[14])
 		{
 			std::copy(&mOffsets[0], &mOffsets[14], &offsets[0]);
 		}
@@ -434,36 +434,33 @@ namespace handwork
 			// if we choose to use less than 14 samples.
 
 			// 8 cube corners
-			mOffsets[0] = XMFLOAT4(+1.0f, +1.0f, +1.0f, 0.0f);
-			mOffsets[1] = XMFLOAT4(-1.0f, -1.0f, -1.0f, 0.0f);
+			mOffsets[0] = Vector4f(+1.0f, +1.0f, +1.0f, 0.0f);
+			mOffsets[1] = Vector4f(-1.0f, -1.0f, -1.0f, 0.0f);
 
-			mOffsets[2] = XMFLOAT4(-1.0f, +1.0f, +1.0f, 0.0f);
-			mOffsets[3] = XMFLOAT4(+1.0f, -1.0f, -1.0f, 0.0f);
+			mOffsets[2] = Vector4f(-1.0f, +1.0f, +1.0f, 0.0f);
+			mOffsets[3] = Vector4f(+1.0f, -1.0f, -1.0f, 0.0f);
 
-			mOffsets[4] = XMFLOAT4(+1.0f, +1.0f, -1.0f, 0.0f);
-			mOffsets[5] = XMFLOAT4(-1.0f, -1.0f, +1.0f, 0.0f);
+			mOffsets[4] = Vector4f(+1.0f, +1.0f, -1.0f, 0.0f);
+			mOffsets[5] = Vector4f(-1.0f, -1.0f, +1.0f, 0.0f);
 
-			mOffsets[6] = XMFLOAT4(-1.0f, +1.0f, -1.0f, 0.0f);
-			mOffsets[7] = XMFLOAT4(+1.0f, -1.0f, +1.0f, 0.0f);
+			mOffsets[6] = Vector4f(-1.0f, +1.0f, -1.0f, 0.0f);
+			mOffsets[7] = Vector4f(+1.0f, -1.0f, +1.0f, 0.0f);
 
 			// 6 centers of cube faces
-			mOffsets[8] = XMFLOAT4(-1.0f, 0.0f, 0.0f, 0.0f);
-			mOffsets[9] = XMFLOAT4(+1.0f, 0.0f, 0.0f, 0.0f);
+			mOffsets[8] = Vector4f(-1.0f, 0.0f, 0.0f, 0.0f);
+			mOffsets[9] = Vector4f(+1.0f, 0.0f, 0.0f, 0.0f);
 
-			mOffsets[10] = XMFLOAT4(0.0f, -1.0f, 0.0f, 0.0f);
-			mOffsets[11] = XMFLOAT4(0.0f, +1.0f, 0.0f, 0.0f);
+			mOffsets[10] = Vector4f(0.0f, -1.0f, 0.0f, 0.0f);
+			mOffsets[11] = Vector4f(0.0f, +1.0f, 0.0f, 0.0f);
 
-			mOffsets[12] = XMFLOAT4(0.0f, 0.0f, -1.0f, 0.0f);
-			mOffsets[13] = XMFLOAT4(0.0f, 0.0f, +1.0f, 0.0f);
+			mOffsets[12] = Vector4f(0.0f, 0.0f, -1.0f, 0.0f);
+			mOffsets[13] = Vector4f(0.0f, 0.0f, +1.0f, 0.0f);
 
 			for (int i = 0; i < 14; ++i)
 			{
 				// Create random lengths in [0.25, 1.0].
 				float s = MathHelper::RandF(0.25f, 1.0f);
-
-				XMVECTOR v = s * XMVector4Normalize(XMLoadFloat4(&mOffsets[i]));
-
-				XMStoreFloat4(&mOffsets[i], v);
+				mOffsets[i] = Vector4f(s * Normalize(mOffsets[i].GetXYZ()), 0.0f);
 			}
 		}
 

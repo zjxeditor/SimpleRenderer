@@ -191,7 +191,7 @@ namespace handwork
 						mAppPaused = false;
 						mMinimized = false;
 						mMaximized = true;
-						mDeviceResources->SetWindowSize(Size2i(mClientWidth, mClientHeight));
+						mDeviceResources->SetWindowSize(Vector2i(mClientWidth, mClientHeight));
 						mRenderResources->CreateWindowSizeDependentResources();
 					}
 					else if (wParam == SIZE_RESTORED)
@@ -201,7 +201,7 @@ namespace handwork
 						{
 							mAppPaused = false;
 							mMinimized = false;
-							mDeviceResources->SetWindowSize(Size2i(mClientWidth, mClientHeight));
+							mDeviceResources->SetWindowSize(Vector2i(mClientWidth, mClientHeight));
 							mRenderResources->CreateWindowSizeDependentResources();
 						}
 						// Restoring from maximized state?
@@ -209,7 +209,7 @@ namespace handwork
 						{
 							mAppPaused = false;
 							mMaximized = false;
-							mDeviceResources->SetWindowSize(Size2i(mClientWidth, mClientHeight));
+							mDeviceResources->SetWindowSize(Vector2i(mClientWidth, mClientHeight));
 							mRenderResources->CreateWindowSizeDependentResources();
 						}
 						else if (mResizing)
@@ -225,7 +225,7 @@ namespace handwork
 						}
 						else // API call such as SetWindowPos or mSwapChain->SetFullscreenState.
 						{
-							mDeviceResources->SetWindowSize(Size2i(mClientWidth, mClientHeight));
+							mDeviceResources->SetWindowSize(Vector2i(mClientWidth, mClientHeight));
 							mRenderResources->CreateWindowSizeDependentResources();
 						}
 					}
@@ -247,7 +247,7 @@ namespace handwork
 				mGameTimer->Start();
 				if (mDeviceResources && mRenderResources && mDeviceResources->GetD3DDevice())
 				{
-					mDeviceResources->SetWindowSize(Size2i(mClientWidth, mClientHeight));
+					mDeviceResources->SetWindowSize(Vector2i(mClientWidth, mClientHeight));
 					mRenderResources->CreateWindowSizeDependentResources();
 				}
 				return 0;
@@ -312,8 +312,8 @@ namespace handwork
 				// Make each pixel correspond to a quarter of a degree.
 				float dx = XMConvertToRadians(0.25f*static_cast<float>(x - mLastMousePos.x));
 				float dy = XMConvertToRadians(0.25f*static_cast<float>(y - mLastMousePos.y));
-				mCamera->Pitch(dy);
-				mCamera->RotateY(dx);
+				mCamera->Pitch(Degrees(dy));
+				mCamera->RotateY(Degrees(dx));
 			}
 			mLastMousePos.x = x;
 			mLastMousePos.y = y;

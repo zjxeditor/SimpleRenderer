@@ -37,7 +37,6 @@ namespace handwork
 			void BuildResource();
 
 		private:
-
 			ID3D12Device * md3dDevice = nullptr;
 
 			D3D12_VIEWPORT mViewport;

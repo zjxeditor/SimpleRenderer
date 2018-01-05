@@ -3,7 +3,6 @@
 #pragma once
 
 #include "d3dUtil.h"
-#include "mathhelper.h"
 
 namespace handwork
 {
@@ -31,7 +30,7 @@ namespace handwork
 			DeviceResources(MSAATYPE msaaType, UINT maxWidth = 1920, UINT maxHeight = 1080);
 			~DeviceResources();
 			void SetWindow(HINSTANCE app, HWND window);
-			void SetWindowSize(Size2i windowSize);
+			void SetWindowSize(Vector2i windowSize);
 			void HandleDeviceLost();
 			void RegisterDeviceNotify(IDeviceNotify* deviceNotify);
 			void Trim();
@@ -40,8 +39,8 @@ namespace handwork
 			void FlushCommandQueue();
 
 			// Device accessors.
-			Size2i GetRenderTargetSize() const { return mRenderTargetSize; }
-			Size2i GetWindowSize() const { return mWindowSize; }
+			Vector2i GetRenderTargetSize() const { return mRenderTargetSize; }
+			Vector2i GetWindowSize() const { return mWindowSize; }
 
 			// D3D Accessors.
 			ID3D12Device* GetD3DDevice() const { return md3dDevice.Get(); }
@@ -134,8 +133,8 @@ namespace handwork
 			HWND mhMainWnd = nullptr;
 
 			// Cached device properties.
-			Size2i mRenderTargetSize;
-			Size2i mWindowSize;
+			Vector2i mRenderTargetSize;
+			Vector2i mWindowSize;
 			UINT mMaxWidth;
 			UINT mMaxHeight;
 

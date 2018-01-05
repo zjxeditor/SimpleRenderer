@@ -43,6 +43,8 @@ namespace handwork
 	class Vector2;
 	template <typename T>
 	class Vector3;
+	template <typename T>
+	class Vector4;
 	class Transform;
 	struct Quaternion;
 	class RNG;

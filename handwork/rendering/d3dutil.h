@@ -104,6 +104,27 @@ namespace handwork
 			// Merge bounding box / sphere
 			static DirectX::BoundingBox MergeBoundingBox(const std::vector<DirectX::BoundingBox>& boxList);
 			static DirectX::BoundingSphere MergeBoundingSphere(const std::vector<DirectX::BoundingSphere>& sphereList);
+
+			// Quick create camera view matrix
+			static Matrix4x4 CameraLookAt(const Vector3f& pos, const Vector3f& target, const Vector3f& up);
+
+			static Matrix4x4 ConvertToMatrix4x4(const DirectX::XMFLOAT4X4& tf)
+			{
+				return Matrix4x4(
+					tf.m[0][0], tf.m[0][1], tf.m[0][2], tf.m[0][3],
+					tf.m[1][0], tf.m[1][1], tf.m[1][2], tf.m[1][3],
+					tf.m[2][0], tf.m[2][1], tf.m[2][2], tf.m[2][3],
+					tf.m[3][0], tf.m[3][1], tf.m[3][2], tf.m[3][3]);
+			}
+
+			static DirectX::XMFLOAT4X4 ConvertToXMFLOAT4x4(const Matrix4x4& tf)
+			{
+				return DirectX::XMFLOAT4X4(
+					tf.m[0][0], tf.m[0][1], tf.m[0][2], tf.m[0][3],
+					tf.m[1][0], tf.m[1][1], tf.m[1][2], tf.m[1][3],
+					tf.m[2][0], tf.m[2][1], tf.m[2][2], tf.m[2][3],
+					tf.m[3][0], tf.m[3][1], tf.m[3][2], tf.m[3][3]);
+			}
 		};
 
 		class DxException
@@ -209,21 +230,21 @@ namespace handwork
 			int NumFramesDirty = gNumFrameResources;
 
 			// Material constant buffer data used for shading.
-			DirectX::XMFLOAT4 DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-			DirectX::XMFLOAT3 FresnelR0 = { 0.01f, 0.01f, 0.01f };
+			Vector4f DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
+			Vector3f FresnelR0 = { 0.01f, 0.01f, 0.01f };
 			float Roughness = .25f;
 		};
 
 		// Simple struct to represent a instance specific data.
 		struct Instance
 		{
-			DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
+			Matrix4x4 World;
 			std::string MatName;
 		};
 
 		struct RenderItemData
 		{
-			DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
+			Matrix4x4 World;
 			std::string MatName;
 			std::string GeoName;
 			std::string DrawArgName;
@@ -247,7 +268,7 @@ namespace handwork
 			// World matrix of the shape that describes the object's local space
 			// relative to the world space, which defines the position, orientation,
 			// and scale of the object in the world.
-			DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
+			Matrix4x4 World;
 
 			// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
 			UINT ObjCBIndex = -1;

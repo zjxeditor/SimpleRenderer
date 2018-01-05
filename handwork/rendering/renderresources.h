@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "mathhelper.h"
-#include "uploadbuffer.h"
 #include "d3dutil.h"
 #include "frameresource.h"
 #include "ssao.h"
@@ -47,7 +45,6 @@ namespace handwork
 			void AddRenderItem(const std::vector<RenderItemData>& renderItems, const RenderLayer layer);
 			Material* GetMaterial(const std::string& name);
 			MeshGeometry* GetMeshGeometry(const std::string& name);
-
 
 		private:
 			void BuildRootSignature();
@@ -112,14 +109,14 @@ namespace handwork
 			// Light for shadow map.
 			float mLightNearZ = 0.0f;
 			float mLightFarZ = 0.0f;
-			DirectX::XMFLOAT3 mLightPosW;
-			DirectX::XMFLOAT4X4 mLightView = MathHelper::Identity4x4();
-			DirectX::XMFLOAT4X4 mLightProj = MathHelper::Identity4x4();
-			DirectX::XMFLOAT4X4 mShadowTransform = MathHelper::Identity4x4();
+			Vector3f mLightPosW;
+			Matrix4x4 mLightView;
+			Matrix4x4 mLightProj;
+			Matrix4x4 mShadowTransform;
 
 			// Current light
 			Light mDirectLights[3];
-			DirectX::XMFLOAT4 mAmbientLight;
+			Vector4f mAmbientLight;
 
 			// Manage new material and geometry.
 			int mCurrentMatCBIndex;

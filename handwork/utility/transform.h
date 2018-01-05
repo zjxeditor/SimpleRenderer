@@ -160,7 +160,8 @@ namespace handwork
 	Transform Rotate(float theta, const Vector3f &axis);
 	Transform LookAt(const Vector3f &pos, const Vector3f &look, const Vector3f &up);
 	Transform Orthographic(float znear, float zfar);
-	Transform Perspective(float fov, float znear, float zfar);
+	Transform Perspective(float fov, float znear, float zfar, float aspect = 1.0f);	// aspect = w / h, fov in degree.
+	Transform OrthographicOffCenter(float l, float r, float b, float t, float n, float f);
 	bool SolveLinearSystem2x2(const float A[2][2], const float B[2], float *x0, float *x1);
 
 	// Transform Inline Functions

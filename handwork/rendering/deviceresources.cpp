@@ -154,7 +154,7 @@ namespace handwork
 			UpdateRenderTargetSize();
 #ifdef _DEBUG
 			std::wostringstream wos;
-			wos << L"Render target size: " << mRenderTargetSize.w << L"x" << mRenderTargetSize.h << L"\n";
+			wos << L"Render target size: " << mRenderTargetSize.x << L"x" << mRenderTargetSize.y << L"\n";
 			OutputDebugString(wos.str().c_str());
 #endif
 
@@ -164,7 +164,7 @@ namespace handwork
 				// Resize the swap chain.
 				HRESULT hr = mSwapChain->ResizeBuffers(
 					SwapChainBufferCount,
-					mRenderTargetSize.w, mRenderTargetSize.h,
+					mRenderTargetSize.x, mRenderTargetSize.y,
 					mBackBufferFormat,
 					DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH);
 				if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET)
@@ -184,8 +184,8 @@ namespace handwork
 			else
 			{
 				DXGI_SWAP_CHAIN_DESC sd;
-				sd.BufferDesc.Width = mRenderTargetSize.w;
-				sd.BufferDesc.Height = mRenderTargetSize.h;
+				sd.BufferDesc.Width = mRenderTargetSize.x;
+				sd.BufferDesc.Height = mRenderTargetSize.y;
 				sd.BufferDesc.RefreshRate.Numerator = 60;
 				sd.BufferDesc.RefreshRate.Denominator = 1;
 				sd.BufferDesc.Format = mBackBufferFormat;
@@ -226,8 +226,8 @@ namespace handwork
 				D3D12_RESOURCE_DESC depthStencilDesc;
 				depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 				depthStencilDesc.Alignment = 0;
-				depthStencilDesc.Width = mRenderTargetSize.w;
-				depthStencilDesc.Height = mRenderTargetSize.h;
+				depthStencilDesc.Width = mRenderTargetSize.x;
+				depthStencilDesc.Height = mRenderTargetSize.y;
 				depthStencilDesc.DepthOrArraySize = 1;
 				depthStencilDesc.MipLevels = 1;
 				// Correction 11/12/2016: SSAO chapter requires an SRV to the depth buffer to read from 
@@ -276,8 +276,8 @@ namespace handwork
 				D3D12_RESOURCE_DESC offScreenDesc;
 				offScreenDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 				offScreenDesc.Alignment = 0;
-				offScreenDesc.Width = mRenderTargetSize.w;
-				offScreenDesc.Height = mRenderTargetSize.h;
+				offScreenDesc.Width = mRenderTargetSize.x;
+				offScreenDesc.Height = mRenderTargetSize.y;
 				offScreenDesc.DepthOrArraySize = 1;
 				offScreenDesc.MipLevels = 1;
 				offScreenDesc.Format = mBackBufferFormat;
@@ -315,8 +315,8 @@ namespace handwork
 				D3D12_RESOURCE_DESC depthStencilDesc;
 				depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 				depthStencilDesc.Alignment = 0;
-				depthStencilDesc.Width = mRenderTargetSize.w;
-				depthStencilDesc.Height = mRenderTargetSize.h;
+				depthStencilDesc.Width = mRenderTargetSize.x;
+				depthStencilDesc.Height = mRenderTargetSize.y;
 				depthStencilDesc.DepthOrArraySize = 1;
 				depthStencilDesc.MipLevels = 1;
 				// Correction 11/12/2016: SSAO chapter requires an SRV to the depth buffer to read from 
@@ -377,11 +377,11 @@ namespace handwork
 			// Update the viewport transform to cover the client area.
 			mScreenViewport.TopLeftX = 0;
 			mScreenViewport.TopLeftY = 0;
-			mScreenViewport.Width = static_cast<float>(mRenderTargetSize.w);
-			mScreenViewport.Height = static_cast<float>(mRenderTargetSize.h);
+			mScreenViewport.Width = static_cast<float>(mRenderTargetSize.x);
+			mScreenViewport.Height = static_cast<float>(mRenderTargetSize.y);
 			mScreenViewport.MinDepth = 0.0f;
 			mScreenViewport.MaxDepth = 1.0f;
-			mScissorRect = { 0, 0, mRenderTargetSize.w, mRenderTargetSize.h };
+			mScissorRect = { 0, 0, mRenderTargetSize.x, mRenderTargetSize.y };
 
 			mCommandList->RSSetViewports(1, &mScreenViewport);
 			mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -403,22 +403,21 @@ namespace handwork
 
 			RECT rect;
 			GetClientRect(mhMainWnd, &rect);
-			mWindowSize.w = rect.right - rect.left;
-			mWindowSize.h = rect.bottom - rect.top;
+			mWindowSize.x = rect.right - rect.left;
+			mWindowSize.y = rect.bottom - rect.top;
 
 			CreateWindowSizeDependentResources();
 		}
 
 		// This method is called when the window size changed.
-		void DeviceResources::SetWindowSize(Size2i windowSize)
+		void DeviceResources::SetWindowSize(Vector2i windowSize)
 		{
-			if (mWindowSize.w != windowSize.w || mWindowSize.h != windowSize.h)
+			if (mWindowSize.x != windowSize.x || mWindowSize.y != windowSize.y)
 			{
 				mWindowSize = windowSize;
 				CreateWindowSizeDependentResources();
 			}
 		}
-
 
 		void DeviceResources::FlushCommandQueue()
 		{
@@ -447,13 +446,13 @@ namespace handwork
 		// Determine the dimensions of the render target and whether it will be scaled down.
 		void DeviceResources::UpdateRenderTargetSize()
 		{
-			int width = mWindowSize.w;
-			int height = mWindowSize.h;
+			int width = mWindowSize.x;
+			int height = mWindowSize.y;
 
 			if (mMaxWidth <= 0 || mMaxHeight <= 0)
 			{
-				mRenderTargetSize.w = width;
-				mRenderTargetSize.h = height;
+				mRenderTargetSize.x = width;
+				mRenderTargetSize.y = height;
 				return;
 			}
 
@@ -461,8 +460,8 @@ namespace handwork
 			int maxWidth = std::min(width, (int)mMaxWidth);
 			int maxheight = std::min(height, (int)mMaxHeight);
 
-			mRenderTargetSize.w = aspect > 1.0f ? maxWidth : (int)(maxheight * aspect);
-			mRenderTargetSize.h = aspect > 1.0f ? (int)(maxWidth / aspect) : maxheight;
+			mRenderTargetSize.x = aspect > 1.0f ? maxWidth : (int)(maxheight * aspect);
+			mRenderTargetSize.y = aspect > 1.0f ? (int)(maxWidth / aspect) : maxheight;
 		}
 
 		// Recreate all device resources and set them back to the current state.

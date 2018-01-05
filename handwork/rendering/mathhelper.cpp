@@ -8,11 +8,6 @@ namespace handwork
 {
 	namespace rendering
 	{
-		using namespace DirectX;
-
-		const float MathHelper::Infinity = FLT_MAX;
-		const float MathHelper::Pi = 3.1415926535f;
-
 		float MathHelper::AngleFromXY(float x, float y)
 		{
 			float theta = 0.0f;
@@ -35,51 +30,50 @@ namespace handwork
 			return theta;
 		}
 
-		XMVECTOR MathHelper::RandUnitVec3()
+		Vector3f MathHelper::RandUnitVec3()
 		{
-			XMVECTOR One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
-			XMVECTOR Zero = XMVectorZero();
+			Vector3f One(1.0f, 1.0f, 1.0f);
+			Vector3f Zero(0.0f, 0.0f, 0.0f);
 
 			// Keep trying until we get a point on/in the hemisphere.
 			while (true)
 			{
 				// Generate random point in the cube [-1,1]^3.
-				XMVECTOR v = XMVectorSet(MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), 0.0f);
+				Vector3f v(RandF(-1.0f, 1.0f), RandF(-1.0f, 1.0f), RandF(-1.0f, 1.0f));
 
 				// Ignore points outside the unit sphere in order to get an even distribution 
 				// over the unit sphere.  Otherwise points will clump more on the sphere near 
 				// the corners of the cube.
 
-				if (XMVector3Greater(XMVector3LengthSq(v), One))
+				if (v.LengthSquared() > 1.0f)
 					continue;
 
-				return XMVector3Normalize(v);
+				return Normalize(v);
 			}
 		}
 
-		XMVECTOR MathHelper::RandHemisphereUnitVec3(XMVECTOR n)
+		Vector3f MathHelper::RandHemisphereUnitVec3(Vector3f n)
 		{
-			XMVECTOR One = XMVectorSet(1.0f, 1.0f, 1.0f, 1.0f);
-			XMVECTOR Zero = XMVectorZero();
+			Vector3f One(1.0f, 1.0f, 1.0f);
+			Vector3f Zero(0.0f, 0.0f, 0.0f);
 
 			// Keep trying until we get a point on/in the hemisphere.
 			while (true)
 			{
 				// Generate random point in the cube [-1,1]^3.
-				XMVECTOR v = XMVectorSet(MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), MathHelper::RandF(-1.0f, 1.0f), 0.0f);
+				Vector3f v(RandF(-1.0f, 1.0f), RandF(-1.0f, 1.0f), RandF(-1.0f, 1.0f));
 
 				// Ignore points outside the unit sphere in order to get an even distribution 
 				// over the unit sphere.  Otherwise points will clump more on the sphere near 
 				// the corners of the cube.
-
-				if (XMVector3Greater(XMVector3LengthSq(v), One))
+				if (v.LengthSquared() > 1.0f)
 					continue;
 
 				// Ignore points in the bottom hemisphere.
-				if (XMVector3Less(XMVector3Dot(n, v), Zero))
+				if (Dot(n, v) < 0.0f)
 					continue;
 
-				return XMVector3Normalize(v);
+				return Normalize(v);
 			}
 		}
 

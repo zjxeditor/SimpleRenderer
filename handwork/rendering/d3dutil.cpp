@@ -127,7 +127,7 @@ namespace handwork
 			return FunctionName + L" failed in " + Filename + L"; line " + std::to_wstring(LineNumber) + L"; error: " + msg;
 		}
 
-		BoundingBox MergeBoundingBox(const std::vector<DirectX::BoundingBox>& boxList)
+		BoundingBox d3dUtil::MergeBoundingBox(const std::vector<DirectX::BoundingBox>& boxList)
 		{
 			BoundingBox temp0, temp1;
 			temp0 = boxList[0];
@@ -141,7 +141,7 @@ namespace handwork
 			return temp0;
 		}
 
-		BoundingSphere MergeBoundingSphere(const std::vector<DirectX::BoundingSphere>& sphereList)
+		BoundingSphere d3dUtil::MergeBoundingSphere(const std::vector<DirectX::BoundingSphere>& sphereList)
 		{
 			BoundingSphere temp0, temp1;
 			temp0 = sphereList[0];
@@ -153,6 +153,42 @@ namespace handwork
 				BoundingSphere::CreateMerged(temp0, temp1, sphereList[i]);
 			}
 			return temp0;
+		}
+
+		Matrix4x4 d3dUtil::CameraLookAt(const Vector3f& pos, const Vector3f& target, const Vector3f& up)
+		{
+			Vector3f L = Normalize(target - pos);
+			Vector3f R = Normalize(Cross(up, L));
+			Vector3f U = Cross(L, R);
+
+			Matrix4x4 view;
+
+			// Fill in the view matrix entries.
+			float x = -Dot(pos, R);
+			float y = -Dot(pos, U);
+			float z = -Dot(pos, L);
+
+			view.m[0][0] = R.x;
+			view.m[0][1] = R.y;
+			view.m[0][2] = R.z;
+			view.m[0][3] = x;
+
+			view.m[1][0] = U.x;
+			view.m[1][1] = U.y;
+			view.m[1][2] = U.z;
+			view.m[1][3] = y;
+
+			view.m[2][0] = L.x;
+			view.m[2][1] = L.y;
+			view.m[2][2] = L.z;
+			view.m[2][3] = z;
+
+			view.m[3][0] = 0.0f;
+			view.m[3][1] = 0.0f;
+			view.m[3][2] = 0.0f;
+			view.m[3][3] = 1.0f;
+
+			return view;
 		}
 
 	}	// namespace rendering
