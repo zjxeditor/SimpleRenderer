@@ -6,9 +6,16 @@ namespace handwork
 	{
 		using namespace DirectX;
 
-		Camera::Camera()
+		Camera::Camera(float fovY, float zn, float zf)
 		{
-			SetLens(45.0f, 1.0f, 1.0f, 1000.0f);
+			mFovY = fovY;
+			mNearZ = zn;
+			mFarZ = zf;
+
+			mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f*mFovY);
+			mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f*mFovY);
+
+			SetLens(1.0f);
 		}
 
 		Camera::~Camera()
@@ -93,17 +100,10 @@ namespace handwork
 			return mFarWindowHeight;
 		}
 
-		void Camera::SetLens(float fovY, float aspect, float zn, float zf)
+		void Camera::SetLens(float aspect)
 		{
 			// cache properties
-			mFovY = fovY;
 			mAspect = aspect;
-			mNearZ = zn;
-			mFarZ = zf;
-
-			mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f*mFovY);
-			mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f*mFovY);
-
 			mProj = Perspective(mFovY, mNearZ, mFarZ, mAspect).GetMatrix();
 		}
 

@@ -25,11 +25,15 @@ namespace handwork
 			Count
 		};
 
+		// The main render class for GPU draw logic. It support both continuous mode and discrete model.
+		// For continous mode, it will do render work one after another to provide stable video image output. CPU will not always wait for GPU to improve performance.
+		// For discrete mode, it will not out present the rendered image. And, it will do render work only once for each render call. You will need to manuall fetch 
+		// the render target buffer and depth buffer. In discrete mode, is depth only moden is enabled, it will only draw to the depth buffer.
 		class RenderResources
 		{
 		public:
 			RenderResources(const std::shared_ptr<DeviceResources>& deviceResource, const std::shared_ptr<Camera> camera,
-				const std::shared_ptr<GameTimer> timer);
+				const std::shared_ptr<GameTimer> timer, bool continousMode = true, bool depthOnlyMode = false);
 			void CreateDeviceDependentResources();
 			void CreateWindowSizeDependentResources();
 			void ReleaseDeviceDependentResources();
@@ -122,6 +126,10 @@ namespace handwork
 			int mCurrentMatCBIndex;
 			int mCurrentObjCBIndex;
 			int mCurrentInstCBIndex;
+
+			// Mode control.
+			bool mContinousMode;
+			bool mDepthOnlyMode;
 		};
 
 	}	// namespace rendering

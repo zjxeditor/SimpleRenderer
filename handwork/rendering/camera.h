@@ -16,7 +16,7 @@ namespace handwork
 		{
 		public:
 
-			Camera();
+			Camera(float fovY = 45.0f, float zn = 1.0f, float zf = 1000.0f);
 			~Camera();
 
 			// Get/Set world camera position.
@@ -43,7 +43,7 @@ namespace handwork
 			float GetFarWindowHeight() const;
 
 			// Set frustum. Aspect = w / h, fov in degree.
-			void SetLens(float fovY, float aspect, float zn, float zf);
+			void SetLens(float aspect);
 
 			// Define camera space via LookAt parameters.
 			void LookAt(const Vector3f& pos, const Vector3f& target, const Vector3f& up);

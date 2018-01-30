@@ -45,8 +45,9 @@ namespace handwork
 			PreInitialize();
 
 			// Create game timer and camera.
-			mCamera = std::make_shared<Camera>();
+			mCamera = std::make_shared<Camera>(45.0f, 1.0f, 1000.0f);
 			mGameTimer = std::make_shared<GameTimer>();
+			mCamera->SetPosition(0.0f, 2.0f, -15.0f);
 
 			// Init window.
 			WNDCLASS wc;
@@ -84,18 +85,18 @@ namespace handwork
 
 			// Init device resources and render resources.
 			mDeviceResources = std::make_shared<DeviceResources>(mMsaaType, mMaxRenderWidth, mMaxRenderHeight);
-			mRenderResources = std::make_shared<RenderResources>(mDeviceResources, mCamera, mGameTimer);
+			mRenderResources = std::make_shared<RenderResources>(mDeviceResources, mCamera, mGameTimer, true, false);
 			mDeviceResources->RegisterDeviceNotify(this);
 			mDeviceResources->SetWindow(mhAppInst, mhMainWnd);
 			mRenderResources->CreateWindowSizeDependentResources();
+
+			// Do post initialize work.
+			PostInitialize();
 
 			// Add necessary render data.
 			mRenderResources->StartAddData();
 			AddRenderData();
 			mRenderResources->FinishAddData();
-
-			// Do post initialize work.
-			PostInitialize();
 
 			return true;
 		}
@@ -362,6 +363,7 @@ namespace handwork
 			mRenderResources->CreateDeviceDependentResources();
 			mRenderResources->CreateWindowSizeDependentResources();
 			// Add necessary render data.
+			mRenderResources->StartAddData();
 			AddRenderData();
 			mRenderResources->FinishAddData();
 

@@ -427,7 +427,7 @@ namespace handwork
 
 				cluster->GetTransformMatrix(transformMatrix);	// The transformation of the mesh at binding time
 				cluster->GetTransformLinkMatrix(transformLinkMatrix);	// The transformation of the cluster(joint) at binding time from joint space to world space
-				globalBindposeInverseMatrix = transformMatrix * transformLinkMatrix.Inverse();
+				globalBindposeInverseMatrix = transformLinkMatrix.Inverse() * transformMatrix;
 
 				// Update the information in mSkeleton 
 				skeletonInfo[jointIndex].GlobalBindposeInverse = ConvertToMatrix4X4(globalBindposeInverseMatrix);

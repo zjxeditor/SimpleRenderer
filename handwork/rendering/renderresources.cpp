@@ -12,15 +12,16 @@ namespace handwork
 		using namespace DirectX::PackedVector;
 
 		RenderResources::RenderResources(const std::shared_ptr<DeviceResources>& deviceResource, const std::shared_ptr<Camera> camera,
-			const std::shared_ptr<GameTimer> timer) :
+			const std::shared_ptr<GameTimer> timer, bool continousMode, bool depthOnlyMode) :
 			mCurrentMatCBIndex(-1),
 			mCurrentObjCBIndex(-1),
-		    mCurrentInstCBIndex(0),
+			mCurrentInstCBIndex(0),
 			mDeviceResources(deviceResource),
 			mCamera(camera),
-			mGameTimer(timer)
+			mGameTimer(timer),
+			mContinousMode(continousMode),
+			mDepthOnlyMode(depthOnlyMode)
 		{
-			mCamera->SetPosition(0.0f, 2.0f, -15.0f);
 			mAmbientLight = { 0.4f, 0.4f, 0.6f, 1.0f };
 			mDirectLights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
 			mDirectLights[0].Strength = { 0.4f, 0.4f, 0.5f };
@@ -72,7 +73,7 @@ namespace handwork
 		{
 			Vector2i renderSize = mDeviceResources->GetRenderTargetSize();
 			float aspect = (float)renderSize.x / renderSize.y;
-			mCamera->SetLens(45.0f, aspect, 1.0f, 1000.0f);
+			mCamera->SetLens(aspect);
 
 			if (mSsao != nullptr)
 			{
