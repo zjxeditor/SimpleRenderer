@@ -13,12 +13,12 @@ namespace handwork
 
 		RenderResources::RenderResources(const std::shared_ptr<DeviceResources>& deviceResource, const std::shared_ptr<Camera> camera,
 			const std::shared_ptr<GameTimer> timer, bool continousMode, bool depthOnlyMode) :
-			mCurrentMatCBIndex(-1),
-			mCurrentObjCBIndex(-1),
-			mCurrentInstCBIndex(0),
 			mDeviceResources(deviceResource),
 			mCamera(camera),
 			mGameTimer(timer),
+			mCurrentMatCBIndex(-1),
+			mCurrentObjCBIndex(-1),
+			mCurrentInstCBIndex(0),
 			mContinousMode(continousMode),
 			mDepthOnlyMode(depthOnlyMode)
 		{
@@ -209,12 +209,12 @@ namespace handwork
 			Vector3f sphereCenterLS = Transform(lightView, Matrix4x4())(targetPos, VectorType::Point);
 
 			// Ortho frustum in light space encloses scene.
-			float l = sphereCenterLS.x - mSceneSphereBounds.Radius;
-			float b = sphereCenterLS.y - mSceneSphereBounds.Radius;
-			float n = sphereCenterLS.z - mSceneSphereBounds.Radius;
-			float r = sphereCenterLS.x + mSceneSphereBounds.Radius;
-			float t = sphereCenterLS.y + mSceneSphereBounds.Radius;
-			float f = sphereCenterLS.z + mSceneSphereBounds.Radius;
+			float l = sphereCenterLS.x - mSceneSphereBounds.Radius * 1.5f;
+			float b = sphereCenterLS.y - mSceneSphereBounds.Radius * 1.5f;
+			float n = sphereCenterLS.z - mSceneSphereBounds.Radius * 1.5f;
+			float r = sphereCenterLS.x + mSceneSphereBounds.Radius * 1.5f;
+			float t = sphereCenterLS.y + mSceneSphereBounds.Radius * 1.5f;
+			float f = sphereCenterLS.z + mSceneSphereBounds.Radius * 1.5f;
 
 			mLightNearZ = n;
 			mLightFarZ = f;
@@ -520,6 +520,7 @@ namespace handwork
 			for (auto& e : renderItems)
 			{
 				auto item = std::make_unique<RenderItem>();
+				item->Name = e.Name;
 				item->Geo = mGeometries[e.GeoName].get();
 				item->SubMesh = &(item->Geo->DrawArgs[e.DrawArgName]);
 				item->PrimitiveType = e.PrimitiveType;
@@ -604,6 +605,8 @@ namespace handwork
 
 		Material* RenderResources::GetMaterial(const std::string& name)
 		{
+			if (name.empty())
+				return nullptr;
 			if (mMaterials.find(name) != mMaterials.end())
 				return mMaterials[name].get();
 			else
@@ -612,10 +615,24 @@ namespace handwork
 
 		MeshGeometry* RenderResources::GetMeshGeometry(const std::string& name)
 		{
+			if (name.empty())
+				return nullptr;
 			if (mGeometries.find(name) != mGeometries.end())
 				return mGeometries[name].get();
 			else
 				return nullptr;
+		}
+
+		RenderItem* RenderResources::GetRenderItem(const std::string& name, const RenderLayer layer)
+		{
+			if (name.empty())
+				return nullptr;
+			for(auto& item : mRitemLayer[(int)layer])
+			{
+				if (item->Name == name)
+					return item;
+			}
+			return nullptr;
 		}
 
 		void RenderResources::BuildRootSignature()
@@ -1037,7 +1054,6 @@ namespace handwork
 			}
 		}
 
-
 		void RenderResources::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
 		{
 			UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
@@ -1074,7 +1090,6 @@ namespace handwork
 				}
 			}
 		}
-
 
 		void RenderResources::DrawSceneToShadowMap()
 		{

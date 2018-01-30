@@ -49,6 +49,7 @@ namespace handwork
 			void AddRenderItem(const std::vector<RenderItemData>& renderItems, const RenderLayer layer);
 			Material* GetMaterial(const std::string& name);
 			MeshGeometry* GetMeshGeometry(const std::string& name);
+			RenderItem* GetRenderItem(const std::string& name, const RenderLayer layer);
 
 		private:
 			void BuildRootSignature();

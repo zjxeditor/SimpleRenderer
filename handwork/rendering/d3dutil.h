@@ -244,6 +244,7 @@ namespace handwork
 
 		struct RenderItemData
 		{
+			std::string Name;
 			Matrix4x4 World;
 			std::string MatName;
 			std::string GeoName;
@@ -258,6 +259,9 @@ namespace handwork
 		{
 			RenderItem() = default;
 			RenderItem(const RenderItem& rhs) = delete;
+
+			// Unioque render item name for look up.
+			std::string Name;
 
 			// Dirty flag indicating the object data has changed and we need to update the constant buffer.
 			// Because we have an object cbuffer for each FrameResource, we have to apply the
