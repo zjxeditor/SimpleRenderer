@@ -65,6 +65,7 @@ namespace handwork
 			ID3D12Resource* DepthStencilBuffer() const;
 			ID3D12Resource* CurrentOffScreenBuffer() const;
 			ID3D12Resource* DepthStencilBufferMS() const;
+			void ManualSwapBackBuffers(){ mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount; }
 
 			UINT GetRtvSize() const { return mRtvDescriptorSize; }
 			UINT GetDsvSize() const { return mDsvDescriptorSize; }
