@@ -82,6 +82,8 @@ namespace handwork
 		meshVertices.clear();
 		meshIndices.clear();
 
+		LOG(INFO) << "Start Import fbx mesh from " << filename << ".";
+
 		// Initialize the SDK manager. This object handles memory management.
 		FbxManager* sdkManager = FbxManager::Create();
 
@@ -189,7 +191,6 @@ namespace handwork
 			item.Rotation = ConvertToVector3f(linkNode->LclRotation.Get());
 			item.Scaling = ConvertToVector3f(linkNode->LclScaling.Get());
 		}
-
 		LOG(INFO) << StringPrintf("Read joint number %d", skeletonInfo.size());
 
 		// Process nodes
@@ -202,6 +203,9 @@ namespace handwork
 
 		// Pack mesh vertices and indices.
 		PackVI(meshVICache, meshVertices, meshIndices);
+		LOG(INFO) << StringPrintf("Read vertex number %d", meshVertices.size());
+		LOG(INFO) << StringPrintf("Read triangle face number %d", meshIndices.size() / 3);
+
 
 		// Free memory
 		for (int i = 0; i < (int)meshVICache.size(); ++i)
@@ -219,6 +223,8 @@ namespace handwork
 			skeleton[i].Rotation = skeletonInfo[i].Rotation;
 			skeleton[i].Scaling = skeletonInfo[i].Scaling;
 		}
+
+		LOG(INFO) << "Finish Import fbx mesh.";
 		
 		return true;
 	}

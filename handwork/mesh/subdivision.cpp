@@ -218,6 +218,8 @@ namespace handwork
 				currentItem.Indices[face * 3 + 5] = fverts[3];
 			}
 		}
+		LOG(INFO) << StringPrintf("Max toplogy level is %d. Vertices: %d. Faces: %d.", nLevel - 1, 
+			topologyInformation[nLevel - 1].VertsNum, topologyInformation[nLevel - 1].FacesNum);
 
 		timer.Reset();
 		// Generate normal stencil table. Containes control points, intermediate points and final points.
@@ -232,63 +234,67 @@ namespace handwork
 		timer.Stop();
 		LOG(INFO) << StringPrintf("Time for %d normal stencils calculation in seconds: %f", normalStencils->GetNumStencils(), timer.TotalTime());
 
-		timer.Reset();
-		// generate normal patch table
-		Far::PatchTableFactory::Options patchTableOptions;
-		patchTableOptions.SetEndCapType(Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
-		patchTableOptions.useInfSharpPatch = refiner->GetAdaptiveOptions().useInfSharpPatch;
-		patchTableOptions.useSingleCreasePatch = refiner->GetAdaptiveOptions().useSingleCreasePatch;
-		patchTableOptions.generateAllLevels = false;
-		std::shared_ptr<Far::PatchTable const> patchTable(Far::PatchTableFactory::Create(*refiner, patchTableOptions));
-		timer.Stop();
-		LOG(INFO) << StringPrintf("Time for %d patches calculation in seconds: %f", patchTable->GetNumPatchesTotal(), timer.TotalTime());
-
-		timer.Reset();
-		// Append endcap stencils
-		std::shared_ptr<Far::StencilTable const> normalExtStencils;
-		if (Far::StencilTable const *localPointStencilTable = patchTable->GetLocalPointStencilTable()) 
+		std::shared_ptr<Far::LimitStencilTable const> limitStencils;
+		if(samples > 0)
 		{
-			normalExtStencils = std::shared_ptr<Far::StencilTable const>(
-				Far::StencilTableFactory::AppendLocalPointStencilTable(
-					*refiner, normalStencils.get(), localPointStencilTable, true));
-		}
-		else
-		{
-			normalExtStencils = normalStencils;
-		}
-		timer.Stop();
-		LOG(INFO) << StringPrintf("Time for %d local point stencils appendent in seconds: %f",
-			normalExtStencils->GetNumStencils() - normalStencils->GetNumStencils(), timer.TotalTime());
+			timer.Reset();
+			// generate normal patch table
+			Far::PatchTableFactory::Options patchTableOptions;
+			patchTableOptions.SetEndCapType(Far::PatchTableFactory::Options::ENDCAP_GREGORY_BASIS);
+			patchTableOptions.useInfSharpPatch = refiner->GetAdaptiveOptions().useInfSharpPatch;
+			patchTableOptions.useSingleCreasePatch = refiner->GetAdaptiveOptions().useSingleCreasePatch;
+			patchTableOptions.generateAllLevels = false;
+			std::shared_ptr<Far::PatchTable const> patchTable(Far::PatchTableFactory::Create(*refiner, patchTableOptions));
+			timer.Stop();
+			LOG(INFO) << StringPrintf("Time for %d patches calculation in seconds: %f", patchTable->GetNumPatchesTotal(), timer.TotalTime());
 
-		// Generate limit stencil table
-		Far::PtexIndices ptexIndices(*refiner);
-		int nfaces = ptexIndices.GetNumFaces();
-		std::unique_ptr<float[]> u(new float[samplesPerFace*nfaces]);
-		std::unique_ptr<float[]> v(new float[samplesPerFace*nfaces]);
-		float* uPtr = u.get();
-		float* vPtr = v.get();
-		std::vector<LocationArray> locs(nfaces);
-		srand(static_cast<int>(2147483647)); // use a large Pell prime number
-		for (int face = 0; face < nfaces; ++face)
-		{
-			LocationArray& larray = locs[face];
-			larray.ptexIdx = face;
-			larray.numLocations = samplesPerFace;
-			larray.s = uPtr;
-			larray.t = vPtr;
-
-			for (int j = 0; j < samplesPerFace; ++j, ++uPtr, ++vPtr)
+			timer.Reset();
+			// Append endcap stencils
+			std::shared_ptr<Far::StencilTable const> normalExtStencils;
+			if (Far::StencilTable const *localPointStencilTable = patchTable->GetLocalPointStencilTable())
 			{
-				*uPtr = (float)rand() / (float)RAND_MAX;
-				*vPtr = (float)rand() / (float)RAND_MAX;
+				normalExtStencils = std::shared_ptr<Far::StencilTable const>(
+					Far::StencilTableFactory::AppendLocalPointStencilTable(
+						*refiner, normalStencils.get(), localPointStencilTable, true));
 			}
-		}
+			else
+			{
+				normalExtStencils = normalStencils;
+			}
+			timer.Stop();
+			LOG(INFO) << StringPrintf("Time for %d local point stencils appendent in seconds: %f",
+				normalExtStencils->GetNumStencils() - normalStencils->GetNumStencils(), timer.TotalTime());
 
-		timer.Reset();
-		// Limit stencils contains only parameter points (samplesPerFace * nfaces).
-		std::shared_ptr<Far::LimitStencilTable const> limitStencils(Far::LimitStencilTableFactory::Create(*refiner, locs, normalExtStencils.get(), patchTable.get()));
-		timer.Stop();
-		LOG(INFO) << StringPrintf("Time for %d limit stencils calculation in seconds: %f", limitStencils->GetNumStencils(), timer.TotalTime());
+			// Generate limit stencil table
+			Far::PtexIndices ptexIndices(*refiner);
+			int nfaces = ptexIndices.GetNumFaces();
+			std::unique_ptr<float[]> u(new float[samplesPerFace*nfaces]);
+			std::unique_ptr<float[]> v(new float[samplesPerFace*nfaces]);
+			float* uPtr = u.get();
+			float* vPtr = v.get();
+			std::vector<LocationArray> locs(nfaces);
+			srand(static_cast<int>(2147483647)); // use a large Pell prime number
+			for (int face = 0; face < nfaces; ++face)
+			{
+				LocationArray& larray = locs[face];
+				larray.ptexIdx = face;
+				larray.numLocations = samplesPerFace;
+				larray.s = uPtr;
+				larray.t = vPtr;
+
+				for (int j = 0; j < samplesPerFace; ++j, ++uPtr, ++vPtr)
+				{
+					*uPtr = (float)rand() / (float)RAND_MAX;
+					*vPtr = (float)rand() / (float)RAND_MAX;
+				}
+			}
+
+			timer.Reset();
+			// Limit stencils contains only parameter points (samplesPerFace * nfaces).
+			limitStencils = std::shared_ptr<Far::LimitStencilTable const>(Far::LimitStencilTableFactory::Create(*refiner, locs, normalExtStencils.get(), patchTable.get()));
+			timer.Stop();
+			LOG(INFO) << StringPrintf("Time for %d limit stencils calculation in seconds: %f", limitStencils->GetNumStencils(), timer.TotalTime());
+		}
 
 		// Create stencil output
 		if (kernel == KernelType::kCPU)
