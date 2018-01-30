@@ -79,7 +79,8 @@ namespace handwork
 				MessageBox(0, L"CreateWindow Failed.", 0, 0);
 				return false;
 			}
-
+			if(!mContinousMode)
+				SetWindowLong(mhMainWnd, GWL_STYLE, GetWindowLong(mhMainWnd, GWL_STYLE)&~(WS_SIZEBOX | WS_MINIMIZEBOX | WS_MAXIMIZEBOX));
 			ShowWindow(mhMainWnd, SW_SHOW);
 			UpdateWindow(mhMainWnd);
 
@@ -98,13 +99,21 @@ namespace handwork
 			AddRenderData();
 			mRenderResources->FinishAddData();
 
+			// Update camera.
+			mCamera->UpdateViewMatrix();
+
 			return true;
 		}
 
 		int App::Run()
 		{
-			MSG msg = { 0 };
+			if (!mContinousMode)
+			{
+				DiscreteEntrance();
+				return 0;
+			}
 
+			MSG msg = { 0 };
 			mGameTimer->Reset();
 
 			while (msg.message != WM_QUIT)
@@ -139,6 +148,9 @@ namespace handwork
 
 		void App::Update()
 		{
+			if (!mContinousMode)
+				return;
+
 			const float dt = mGameTimer->DeltaTime();
 
 			if (GetAsyncKeyState('W') & 0x8000)
@@ -296,6 +308,9 @@ namespace handwork
 
 		void App::OnMouseDown(WPARAM btnState, int x, int y)
 		{
+			if (!mContinousMode)
+				return;
+
 			mLastMousePos.x = x;
 			mLastMousePos.y = y;
 			SetCapture(mhMainWnd);
@@ -303,11 +318,17 @@ namespace handwork
 
 		void App::OnMouseUp(WPARAM btnState, int x, int y)
 		{
+			if (!mContinousMode)
+				return;
+
 			ReleaseCapture();
 		}
 
 		void App::OnMouseMove(WPARAM btnState, int x, int y)
 		{
+			if (!mContinousMode)
+				return;
+
 			if ((btnState & MK_LBUTTON) != 0)
 			{
 				// Make each pixel correspond to a quarter of a degree.
@@ -322,6 +343,9 @@ namespace handwork
 
 		void App::CalculateFrameStats()
 		{
+			if (!mContinousMode)
+				return;
+
 			// Code computes the average frames per second, and also the 
 			// average time it takes to render one frame.  These stats 
 			// are appended to the window caption bar.

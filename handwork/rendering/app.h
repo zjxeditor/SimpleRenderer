@@ -29,6 +29,11 @@ namespace handwork
 			int Run();
 			void SetCameraSpeed(float speed) { mCameraSpeed = speed; }
 
+			DeviceResources* GetDeviceResources() const { return mDeviceResources.get(); }
+			RenderResources* GetRenderResources() const { return mRenderResources.get(); }
+			GameTimer* GetGameTimer() const { return mGameTimer.get(); }
+			Camera* GetCamera() const { return mCamera.get(); }
+
 		protected:
 			virtual void Update();
 			virtual void OnMouseDown(WPARAM btnState, int x, int y);
@@ -39,6 +44,7 @@ namespace handwork
 			virtual void PreInitialize() = 0;
 			virtual void PostInitialize() = 0;
 			virtual void AddRenderData() = 0;
+			virtual void DiscreteEntrance() = 0;
 
 			// IDeviceNotify
 			virtual void OnDeviceLost();
@@ -52,8 +58,10 @@ namespace handwork
 			MSAATYPE mMsaaType = MSAATYPE::MSAAx4;
 			UINT mMaxRenderWidth = 1920;
 			UINT mMaxRenderHeight = 1080;
-			bool mContinousMode = true;
+			bool mContinousMode = true;		// Set to false to change to discrete mode. Will not draw window.
 			bool mDepthOnlyMode = false;
+			int mClientWidth = 800;
+			int mClientHeight = 600;
 
 		private:
 			static App* mApp;
@@ -69,8 +77,6 @@ namespace handwork
 			bool      mFullscreenState = false;	// fullscreen enabled
 
 			std::wstring mMainWndCaption = L"handwork";
-			int mClientWidth = 800;
-			int mClientHeight = 600;
 			POINT mLastMousePos;
 			float mCameraSpeed = 10.0f;
 		};

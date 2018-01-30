@@ -34,7 +34,6 @@
     <ClCompile Include="rendering\renderresources.cpp" />
     <ClCompile Include="rendering\shadowmap.cpp" />
     <ClCompile Include="rendering\ssao.cpp" />
-    <ClCompile Include="test.cpp" />
     <ClCompile Include="utility\error.cpp" />
     <ClCompile Include="utility\fileutil.cpp" />
     <ClCompile Include="utility\floatfile.cpp" />

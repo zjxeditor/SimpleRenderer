@@ -1,3 +1,9 @@
+#include <stdio.h>
+#include <io.h>
+#include <fcntl.h>
+#include <Windows.h>
+#include <iostream>
+
 #include "myapp.h"
 #include "utility/utility.h"
 #include "utility/transform.h"
@@ -9,28 +15,42 @@
 using namespace handwork;
 using namespace handwork::rendering;
 
+
 // Application entry point.
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
-	PSTR cmdLine, int showCmd)
+int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd)
 {
-	// Enable run-time memory check for debug builds.
 #if defined(DEBUG) | defined(_DEBUG)
+	// Enable run-time memory check for debug builds.
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+
+	// Create additional console window.
+	AllocConsole();
+	FILE* stream;
+	freopen_s(&stream, "CON", "r", stdin);
+	freopen_s(&stream, "CON", "w", stdout);
+	freopen_s(&stream, "CON", "w", stderr);
+	SetConsoleTitle(L"handwork_console");
 #endif
 
+	int res = 0;
 	try
 	{
 		MyApp theApp(hInstance);
 		if (!theApp.Initialize())
 			return 0;
-
-		return theApp.Run();
+		res = theApp.Run();
 	}
 	catch (DxException& e)
 	{
 		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
-		return 0;
 	}
+
+#if defined(DEBUG) | defined(_DEBUG)
+	// Free additional console window.
+	FreeConsole();
+#endif
+
+	return res;
 }
 
 
@@ -46,6 +66,10 @@ void MyApp::PreInitialize()
 	mMsaaType = MSAATYPE::MSAAx4;
 	mMaxRenderWidth = 1920;
 	mMaxRenderHeight = 1080;
+	mClientWidth = 800;
+	mClientHeight = 600;
+	mContinousMode = false;
+	mDepthOnlyMode = false;
 
 	// Initialize Google's logging library.
 	FLAGS_log_dir = "./log/";
@@ -550,4 +574,8 @@ void MyApp::AddRenderData()
 	mRenderResources->AddRenderItem(renderItems, RenderLayer::Opaque);
 }
 
-
+// Entrance in discrete mode.
+void  MyApp::DiscreteEntrance()
+{
+	std::cout << "enter discrete mode" << std::endl;
+}

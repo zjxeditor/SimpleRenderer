@@ -21,6 +21,7 @@ namespace handwork
 		virtual void PreInitialize() override;
 		virtual void PostInitialize() override;
 		virtual void AddRenderData() override;
+		virtual void DiscreteEntrance() override;
 
 	private:
 		float mLightRotationAngle = 0.0f;
@@ -49,6 +50,9 @@ namespace handwork
 
 	void MyApp::Update()
 	{
+		if (!mContinousMode)
+			return;
+
 		App::Update();
 
 		// Animate the lights (and hence shadows).

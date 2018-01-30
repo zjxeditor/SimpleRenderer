@@ -18,7 +18,6 @@
     <ClCompile Include="utility\fileutil.cpp">
       <Filter>utility</Filter>
     </ClCompile>
-    <ClCompile Include="test.cpp" />
     <ClCompile Include="utility\floatfile.cpp">
       <Filter>utility</Filter>
     </ClCompile>
