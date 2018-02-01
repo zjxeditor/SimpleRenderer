@@ -182,7 +182,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
-      <AdditionalDependencies>glog.lib;libfbxsdk.lib;d3dcompiler.lib;D3D12.lib;dxgi.lib;osdCPU.lib;osdGPU.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>glog.lib;libfbxsdk.lib;d3dcompiler.lib;D3D12.lib;dxgi.lib;osdCPU.lib;osdGPU.lib;runtimeobject.lib;windowscodecs.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
     </Link>
   </ItemDefinitionGroup>

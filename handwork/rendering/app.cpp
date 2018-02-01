@@ -41,6 +41,9 @@ namespace handwork
 
 		bool App::Initialize()
 		{
+			// Initialize the windows imaging component functionality.
+			ThrowIfFailed(CoInitializeEx(nullptr, COINITBASE_MULTITHREADED));
+
 			// Do pre-initialize work.
 			PreInitialize();
 

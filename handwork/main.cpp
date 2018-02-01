@@ -578,4 +578,8 @@ void MyApp::AddRenderData()
 void  MyApp::DiscreteEntrance()
 {
 	std::cout << "enter discrete mode" << std::endl;
+	mRenderResources->Update();
+	mRenderResources->Render();
+	auto res = mDeviceResources->RetrieveRenderTargetBuffer();
+	mDeviceResources->SaveToLocalImage(res, "screenshot.bmp");
 }

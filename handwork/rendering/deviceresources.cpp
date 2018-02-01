@@ -1,6 +1,56 @@
-// Manage device related resources for DirectX.
+﻿// Manage device related resources for DirectX.
 
 #include "deviceresources.h"
+#include <wincodec.h>
+
+
+namespace DirectX
+{
+	IWICImagingFactory2* _GetWIC()
+	{
+		static INIT_ONCE s_initOnce = INIT_ONCE_STATIC_INIT;
+
+		IWICImagingFactory2* factory = nullptr;
+		(void)InitOnceExecuteOnce(&s_initOnce,
+			[](PINIT_ONCE, PVOID, PVOID *factory) -> BOOL
+		{
+			return SUCCEEDED(CoCreateInstance(
+				CLSID_WICImagingFactory2,
+				nullptr,
+				CLSCTX_INPROC_SERVER,
+				__uuidof(IWICImagingFactory2),
+				factory)) ? TRUE : FALSE;
+		}, nullptr, reinterpret_cast<LPVOID*>(&factory));
+
+		return factory;
+	}
+
+	class auto_delete_file_wic
+	{
+	public:
+		auto_delete_file_wic(Microsoft::WRL::ComPtr<IWICStream>& hFile, LPCWSTR szFile) : m_filename(szFile), m_handle(hFile) {}
+
+		auto_delete_file_wic(const auto_delete_file_wic&) = delete;
+		auto_delete_file_wic& operator=(const auto_delete_file_wic&) = delete;
+
+		~auto_delete_file_wic()
+		{
+			if (m_filename)
+			{
+				m_handle.Reset();
+				DeleteFileW(m_filename);
+			}
+		}
+
+		void clear() { m_filename = 0; }
+
+	private:
+		LPCWSTR m_filename;
+		Microsoft::WRL::ComPtr<IWICStream>& m_handle;
+	};
+
+} // namespace DirectX
+
 
 namespace handwork
 {
@@ -374,6 +424,79 @@ namespace handwork
 				mCommandList->ResourceBarrier(2, barriers);
 			}
 
+			// Create read back buffers. Readback resources must be buffers.
+			D3D12_RESOURCE_DESC referdesc = mSwapChainBuffer[0]->GetDesc();
+			UINT64 totalResourceSize = 0;
+			UINT64 fpRowPitch = 0;
+			UINT fpRowCount = 0;
+			md3dDevice->GetCopyableFootprints(	// Get the rowcount, pitch and size of the top mip
+				&referdesc,
+				0,
+				1,
+				0,
+				nullptr,
+				&fpRowCount,
+				&fpRowPitch,
+				&totalResourceSize);
+			UINT64 dstRowPitch = (fpRowPitch + 255) & ~0xFF;	// Round up the srcPitch to multiples of 256
+			mReadBackRowPitch = dstRowPitch;
+			// Create read back buffer for render target.
+			D3D12_RESOURCE_DESC readBackDesc;
+			readBackDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+			readBackDesc.Alignment = referdesc.Alignment;
+			readBackDesc.Width = dstRowPitch * referdesc.Height;
+			readBackDesc.Height = 1;
+			readBackDesc.DepthOrArraySize = 1;
+			readBackDesc.MipLevels = 1;
+			readBackDesc.Format = DXGI_FORMAT_UNKNOWN;
+			readBackDesc.SampleDesc.Count = 1;
+			readBackDesc.SampleDesc.Quality = 0;
+			readBackDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+			readBackDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			ThrowIfFailed(md3dDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+				D3D12_HEAP_FLAG_NONE,
+				&readBackDesc,
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS(mReadBackBuffer.GetAddressOf())));
+
+			referdesc = mDepthStencilBuffer->GetDesc();
+			totalResourceSize = 0;
+			fpRowPitch = 0;
+			fpRowCount = 0;
+			md3dDevice->GetCopyableFootprints(	// Get the rowcount, pitch and size of the top mip
+				&referdesc,
+				0,
+				1,
+				0,
+				nullptr,
+				&fpRowCount,
+				&fpRowPitch,
+				&totalResourceSize);
+			dstRowPitch = (fpRowPitch + 255) & ~0xFF;	// Round up the srcPitch to multiples of 256
+			mReadBackDepthRowPitch = dstRowPitch;
+			// Create read back buffer for depth buffer.
+			D3D12_RESOURCE_DESC readBackDepthDesc;
+			readBackDepthDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+			readBackDepthDesc.Alignment = referdesc.Alignment;
+			readBackDepthDesc.Width = dstRowPitch * referdesc.Height;
+			readBackDepthDesc.Height = 1;
+			readBackDepthDesc.DepthOrArraySize = 1;
+			readBackDepthDesc.MipLevels = 1;
+			readBackDepthDesc.Format = DXGI_FORMAT_UNKNOWN;
+			readBackDepthDesc.SampleDesc.Count = 1;
+			readBackDepthDesc.SampleDesc.Quality = 0;
+			readBackDepthDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+			readBackDepthDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+			ThrowIfFailed(md3dDevice->CreateCommittedResource(
+				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
+				D3D12_HEAP_FLAG_NONE,
+				&readBackDepthDesc,
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				nullptr,
+				IID_PPV_ARGS(mReadBackDepthBuffer.GetAddressOf())));
+
 			// Update the viewport transform to cover the client area.
 			mScreenViewport.TopLeftX = 0;
 			mScreenViewport.TopLeftY = 0;
@@ -613,6 +736,118 @@ namespace handwork
 			}
 		}
 
+		// Read back the render target buffer.
+		RetrieveImageData* DeviceResources::RetrieveRenderTargetBuffer()
+		{
+			// Flush before changing any resources.
+			FlushCommandQueue();
+			ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+
+			// Note that the swap chain has already been swapped. So what we actually need to fetch is the previous back buffer.
+			ID3D12Resource* sourceBuffer = mSwapChainBuffer[(mCurrBackBuffer + SwapChainBufferCount - 1) % SwapChainBufferCount].Get();
+
+			// Transition the resource.
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(sourceBuffer,
+				D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_COPY_SOURCE));
+			// Get the copy target location.
+			D3D12_RESOURCE_DESC referdesc = sourceBuffer->GetDesc();
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT bufferFootprint = {};
+			bufferFootprint.Footprint.Width = static_cast<UINT>(referdesc.Width);
+			bufferFootprint.Footprint.Height = referdesc.Height;
+			bufferFootprint.Footprint.Depth = 1;
+			bufferFootprint.Footprint.RowPitch = static_cast<UINT>(mReadBackRowPitch);
+			bufferFootprint.Footprint.Format = referdesc.Format;
+
+			CD3DX12_TEXTURE_COPY_LOCATION copyDest(mReadBackBuffer.Get(), bufferFootprint);
+			CD3DX12_TEXTURE_COPY_LOCATION copySrc(sourceBuffer, 0);
+
+			// Copy the texture
+			mCommandList->CopyTextureRegion(&copyDest, 0, 0, 0, &copySrc, nullptr);
+
+			// Transition the resource.
+			mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(sourceBuffer,
+				D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_PRESENT));
+
+			// Wait to finish.
+			ThrowIfFailed(mCommandList->Close());
+			ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+			mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+			FlushCommandQueue();
+
+			RetrieveImageData* res = new RetrieveImageData();
+			res->Width = static_cast<UINT>(referdesc.Width);
+			res->Height = static_cast<UINT>(referdesc.Height);
+			res->Pitch = static_cast<UINT>(mReadBackRowPitch);
+			res->Data.resize(res->Pitch * res->Height);
+			BYTE* mMappedData = nullptr;
+			ThrowIfFailed(mReadBackBuffer->Map(0, &CD3DX12_RANGE(0, mReadBackRowPitch * referdesc.Height), reinterpret_cast<void**>(&mMappedData)));
+			memcpy(&res->Data[0], mMappedData, res->Data.size());
+			mReadBackBuffer->Unmap(0, &CD3DX12_RANGE(0, 0));
+
+			return res;
+		}
+
+		// Read back the depth buffer.
+		RetrieveImageData* DeviceResources::RetrieveDepthBufferBuffer()
+		{
+			return nullptr;
+		}
+
+		// Save a read back texture buffer to local image using WIC.
+		void DeviceResources::SaveToLocalImage(RetrieveImageData* data, const std::string& file)
+		{
+			std::wstring lname = AnsiToWString(file);
+			auto fileName = lname.c_str();
+
+			// The source data format is always treated as 32RGBA. We use bmp natie codec. It will encode as 32BGRA format. So we should do a conversion.
+			WICPixelFormatGUID pfGuid = GUID_WICPixelFormat32bppRGBA;
+			WICPixelFormatGUID targetGuid = GUID_WICPixelFormat32bppBGRA;
+
+			auto pWIC = DirectX::_GetWIC();
+			if (!pWIC)
+			{
+				LOG(ERROR, "Cannot get the WIC factory.");
+				return;
+			}
+
+			ComPtr<IWICStream> stream;
+			ThrowIfFailed(pWIC->CreateStream(stream.GetAddressOf()));
+			ThrowIfFailed(stream->InitializeFromFilename(fileName, GENERIC_WRITE));
+			DirectX::auto_delete_file_wic delonfail(stream, fileName);
+			ComPtr<IWICBitmapEncoder> encoder;
+			ThrowIfFailed(pWIC->CreateEncoder(GUID_ContainerFormatBmp, nullptr, encoder.GetAddressOf()));
+			ThrowIfFailed(encoder->Initialize(stream.Get(), WICBitmapEncoderNoCache));
+			ComPtr<IWICBitmapFrameEncode> frame;
+			ComPtr<IPropertyBag2> props;
+			ThrowIfFailed(encoder->CreateNewFrame(frame.GetAddressOf(), props.GetAddressOf()));
+
+			// Opt-in to the WIC2 support for writing 32-bit Windows BMP files with an alpha channel
+			PROPBAG2 option = {};
+			option.pstrName = const_cast<wchar_t*>(L"EnableV5Header32bppBGRA");
+			VARIANT varValue;
+			varValue.vt = VT_BOOL;
+			varValue.boolVal = VARIANT_TRUE;
+			(void)props->Write(1, &option, &varValue);
+
+			ThrowIfFailed(frame->Initialize(props.Get()));
+			ThrowIfFailed(frame->SetSize(static_cast<UINT>(data->Width), data->Height));
+			ThrowIfFailed(frame->SetResolution(72, 72));
+			ThrowIfFailed(frame->SetPixelFormat(&targetGuid));
+
+			// Do conversion.
+			ComPtr<IWICBitmap> source;
+			ThrowIfFailed(pWIC->CreateBitmapFromMemory(static_cast<UINT>(data->Width), data->Height, pfGuid,
+				static_cast<UINT>(data->Pitch), static_cast<UINT>(data->Pitch * data->Height), &(data->Data[0]), source.GetAddressOf()));
+			ComPtr<IWICFormatConverter> FC;
+			ThrowIfFailed(pWIC->CreateFormatConverter(FC.GetAddressOf()));
+			ThrowIfFailed(FC->Initialize(source.Get(), targetGuid, WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeMedianCut));
+			WICRect rect = { 0, 0, static_cast<INT>(data->Width), static_cast<INT>(data->Height) };
+			ThrowIfFailed(frame->WriteSource(FC.Get(), &rect));
+
+			ThrowIfFailed(frame->Commit());
+			ThrowIfFailed(encoder->Commit());
+			delonfail.clear();
+		}
 
 		CD3DX12_CPU_DESCRIPTOR_HANDLE DeviceResources::CurrentRtv() const
 		{
@@ -669,6 +904,16 @@ namespace handwork
 		ID3D12Resource* DeviceResources::DepthStencilBufferMS() const
 		{
 			return mDepthStencilBufferMS.Get();
+		}
+
+		ID3D12Resource* DeviceResources::ReadBackBuffer() const
+		{
+			return mReadBackBuffer.Get();
+		}
+
+		ID3D12Resource* DeviceResources::ReadBackDepthBuffer() const
+		{
+			return mReadBackDepthBuffer.Get();
 		}
 
 		// Be sure to pick up the first adapter that supports D3D12, use the following code.

@@ -24,6 +24,15 @@ namespace handwork
 			MSAAx8
 		};
 
+		class RetrieveImageData
+		{
+		public:
+			UINT Width;
+			UINT Height;
+			UINT Pitch;
+			std::vector<BYTE> Data;
+		};
+
 		class DeviceResources
 		{
 		public:
@@ -65,6 +74,8 @@ namespace handwork
 			ID3D12Resource* DepthStencilBuffer() const;
 			ID3D12Resource* CurrentOffScreenBuffer() const;
 			ID3D12Resource* DepthStencilBufferMS() const;
+			ID3D12Resource* ReadBackBuffer() const;
+			ID3D12Resource* ReadBackDepthBuffer() const;
 			void ManualSwapBackBuffers(){ mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount; }
 
 			UINT GetRtvSize() const { return mRtvDescriptorSize; }
@@ -76,6 +87,11 @@ namespace handwork
 			UINT GetSwapChainBufferCount() const { return SwapChainBufferCount; }
 			DXGI_FORMAT GetBackBufferFormat() const { return mBackBufferFormat; }
 			DXGI_FORMAT GetDepthStencilFormat() const { return mDepthStencilFormat; }
+
+			// Note that the result need to be manually freed.
+			RetrieveImageData* RetrieveRenderTargetBuffer();
+			RetrieveImageData* RetrieveDepthBufferBuffer();
+			void SaveToLocalImage(RetrieveImageData* data, const std::string& file);
 
 		private:
 			void CreateDeviceIndependentResources();
@@ -122,6 +138,12 @@ namespace handwork
 			Microsoft::WRL::ComPtr<ID3D12Resource> mDepthStencilBufferMS;
 			UINT mMsaaCount;
 			UINT mMsaaQuality;
+
+			// Readback
+			Microsoft::WRL::ComPtr<ID3D12Resource> mReadBackBuffer;
+			Microsoft::WRL::ComPtr<ID3D12Resource> mReadBackDepthBuffer;
+			UINT64 mReadBackRowPitch = 0;
+			UINT64 mReadBackDepthRowPitch = 0;
 
 			// Direct3D properties.
 			D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;
