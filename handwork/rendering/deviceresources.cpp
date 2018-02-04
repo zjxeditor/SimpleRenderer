@@ -461,42 +461,6 @@ namespace handwork
 				nullptr,
 				IID_PPV_ARGS(mReadBackBuffer.GetAddressOf())));
 
-			referdesc = mDepthStencilBuffer->GetDesc();
-			totalResourceSize = 0;
-			fpRowPitch = 0;
-			fpRowCount = 0;
-			md3dDevice->GetCopyableFootprints(	// Get the rowcount, pitch and size of the top mip
-				&referdesc,
-				0,
-				1,
-				0,
-				nullptr,
-				&fpRowCount,
-				&fpRowPitch,
-				&totalResourceSize);
-			dstRowPitch = (fpRowPitch + 255) & ~0xFF;	// Round up the srcPitch to multiples of 256
-			mReadBackDepthRowPitch = dstRowPitch;
-			// Create read back buffer for depth buffer.
-			D3D12_RESOURCE_DESC readBackDepthDesc;
-			readBackDepthDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-			readBackDepthDesc.Alignment = referdesc.Alignment;
-			readBackDepthDesc.Width = dstRowPitch * referdesc.Height;
-			readBackDepthDesc.Height = 1;
-			readBackDepthDesc.DepthOrArraySize = 1;
-			readBackDepthDesc.MipLevels = 1;
-			readBackDepthDesc.Format = DXGI_FORMAT_UNKNOWN;
-			readBackDepthDesc.SampleDesc.Count = 1;
-			readBackDepthDesc.SampleDesc.Quality = 0;
-			readBackDepthDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-			readBackDepthDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-			ThrowIfFailed(md3dDevice->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_READBACK),
-				D3D12_HEAP_FLAG_NONE,
-				&readBackDepthDesc,
-				D3D12_RESOURCE_STATE_COPY_DEST,
-				nullptr,
-				IID_PPV_ARGS(mReadBackDepthBuffer.GetAddressOf())));
-
 			// Update the viewport transform to cover the client area.
 			mScreenViewport.TopLeftX = 0;
 			mScreenViewport.TopLeftY = 0;
@@ -639,7 +603,7 @@ namespace handwork
 		}
 
 		// Prepare presentation work.
-		void DeviceResources::PreparePresent()
+		void DeviceResources::PreparePresent(bool clearDepth)
 		{
 			mCommandList->RSSetViewports(1, &mScreenViewport);
 			mCommandList->RSSetScissorRects(1, &mScissorRect);
@@ -651,6 +615,8 @@ namespace handwork
 					D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 				// WE ALREADY WROTE THE DEPTH INFO TO THE DEPTH BUFFER IN DrawNormalsAndDepth,
 				// SO DO NOT CLEAR DEPTH.
+				if(clearDepth)
+					mCommandList->ClearDepthStencilView(Dsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
 			}
 			else
 			{
@@ -739,8 +705,7 @@ namespace handwork
 		// Read back the render target buffer.
 		RetrieveImageData* DeviceResources::RetrieveRenderTargetBuffer()
 		{
-			// Flush before changing any resources.
-			FlushCommandQueue();
+			// Reset command list.
 			ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
 
 			// Note that the swap chain has already been swapped. So what we actually need to fetch is the previous back buffer.
@@ -787,12 +752,6 @@ namespace handwork
 			return res;
 		}
 
-		// Read back the depth buffer.
-		RetrieveImageData* DeviceResources::RetrieveDepthBufferBuffer()
-		{
-			return nullptr;
-		}
-
 		// Save a read back texture buffer to local image using WIC.
 		void DeviceResources::SaveToLocalImage(RetrieveImageData* data, const std::string& file)
 		{
@@ -802,11 +761,12 @@ namespace handwork
 			// The source data format is always treated as 32RGBA. We use bmp natie codec. It will encode as 32BGRA format. So we should do a conversion.
 			WICPixelFormatGUID pfGuid = GUID_WICPixelFormat32bppRGBA;
 			WICPixelFormatGUID targetGuid = GUID_WICPixelFormat32bppBGRA;
+			wchar_t* optFormatName = L"EnableV5Header32bppBGRA";
 
 			auto pWIC = DirectX::_GetWIC();
 			if (!pWIC)
 			{
-				LOG(ERROR, "Cannot get the WIC factory.");
+				LOG(ERROR) << "Cannot get the WIC factory.";
 				return;
 			}
 
@@ -823,7 +783,7 @@ namespace handwork
 
 			// Opt-in to the WIC2 support for writing 32-bit Windows BMP files with an alpha channel
 			PROPBAG2 option = {};
-			option.pstrName = const_cast<wchar_t*>(L"EnableV5Header32bppBGRA");
+			option.pstrName = optFormatName;
 			VARIANT varValue;
 			varValue.vt = VT_BOOL;
 			varValue.boolVal = VARIANT_TRUE;
@@ -909,11 +869,6 @@ namespace handwork
 		ID3D12Resource* DeviceResources::ReadBackBuffer() const
 		{
 			return mReadBackBuffer.Get();
-		}
-
-		ID3D12Resource* DeviceResources::ReadBackDepthBuffer() const
-		{
-			return mReadBackDepthBuffer.Get();
 		}
 
 		// Be sure to pick up the first adapter that supports D3D12, use the following code.

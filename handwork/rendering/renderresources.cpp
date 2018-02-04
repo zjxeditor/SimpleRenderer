@@ -95,7 +95,7 @@ namespace handwork
 		{
 			auto commandList = mDeviceResources->GetCommandList();
 			auto commandQueue = mDeviceResources->GetCommandQueue();
-			
+
 			BuildFrameResources();
 
 			// Execute the initialization commands.
@@ -157,7 +157,7 @@ namespace handwork
 				if (e->NumFramesDirty <= 0)
 					continue;
 
-				if(e->Instances.size() == 0)
+				if (e->Instances.size() == 0)
 				{
 					// No instancing.
 					ObjectConstants objConstants;
@@ -342,65 +342,22 @@ namespace handwork
 
 			ID3D12DescriptorHeap* descriptorHeaps[] = { mSrvDescriptorHeap.Get() };
 			commandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
-			// Set base root signature.
-			commandList->SetGraphicsRootSignature(mRootSignature.Get());
 
-			// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
-			// set as a root descriptor.
-			auto matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
-			commandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
-			auto instBuffer = mCurrFrameResource->InstanceBuffer->Resource();
-			commandList->SetGraphicsRootShaderResourceView(3, instBuffer->GetGPUVirtualAddress());
-			// Bind null SRV for shadow map pass.
-			commandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
-
-			if(!mContinousMode && mDepthOnlyMode)
+			ID3D12Resource* matBuffer;
+			ID3D12Resource* instBuffer;
+			if(!mDepthOnlyMode)
 			{
-				// Only draw depth in discrete mode.
-				auto passCB = mCurrFrameResource->PassCB->Resource();
-				commandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+				// Set base root signature.
+				commandList->SetGraphicsRootSignature(mRootSignature.Get());
+				// Bind all the materials used in this scene.  For structured buffers, we can bypass the heap and 
+				// set as a root descriptor.
+				matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
+				commandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
+				instBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+				commandList->SetGraphicsRootShaderResourceView(3, instBuffer->GetGPUVirtualAddress());
+				// Bind null SRV for shadow map pass.
+				commandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
 
-				commandList->RSSetViewports(1, &mDeviceResources->GetScreenViewport());
-				commandList->RSSetScissorRects(1, &mDeviceResources->GetScissorRect());
-
-				// Indicate a state transition on the resource usage.
-				if (mDeviceResources->GetMsaaQuality() <= 0)
-				{
-					commandList->ClearDepthStencilView(mDeviceResources->Dsv(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-					commandList->OMSetRenderTargets(0, nullptr, false, &mDeviceResources->Dsv());
-				}
-				else
-				{
-					commandList->ClearDepthStencilView(mDeviceResources->DsvMS(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
-					commandList->OMSetRenderTargets(0, nullptr, false, &mDeviceResources->DsvMS());
-				}
-
-				// Only draw opaque items.
-				if (mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
-				{
-					commandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
-					DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
-				}
-				if (mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
-				{
-					commandList->SetPipelineState(mPSOs["shadowInst_opaque"].Get());
-					DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::OpaqueInst]);
-				}
-
-				// Done recording commands.
-				ThrowIfFailed(commandList->Close());
-				// Add the command list to the queue for execution.
-				ID3D12CommandList* cmdsLists[] = { commandList };
-				mDeviceResources->GetCommandQueue()->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-				
-				mDeviceResources->ManualSwapBackBuffers();
-				mCurrFrameResource->Fence++;
-
-				// Wait to finish.
-				mDeviceResources->FlushCommandQueue();
-			}
-			else
-			{
 				//
 				// Shadow map pass.
 				//
@@ -419,27 +376,51 @@ namespace handwork
 
 				commandList->SetGraphicsRootSignature(mSsaoRootSignature.Get());
 				mSsao->ComputeSsao(commandList, mCurrFrameResource, 3);
+			}
 
-				//
-				// Main rendering pass.
-				//
+			//
+			// Main rendering pass.
+			//
 
-				// Rebind state whenever graphics root signature changes.
-				// Bind all the materials used in this scene. For structured buffers, we can bypass the heap and 
-				// set as a root descriptor.
-				commandList->SetGraphicsRootSignature(mRootSignature.Get());
-				matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
-				commandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
-				instBuffer = mCurrFrameResource->InstanceBuffer->Resource();
-				commandList->SetGraphicsRootShaderResourceView(3, instBuffer->GetGPUVirtualAddress());
-				auto passCB = mCurrFrameResource->PassCB->Resource();
-				commandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+			// Rebind state whenever graphics root signature changes.
+			// Bind all the materials used in this scene. For structured buffers, we can bypass the heap and 
+			// set as a root descriptor.
+			commandList->SetGraphicsRootSignature(mRootSignature.Get());
+			matBuffer = mCurrFrameResource->MaterialBuffer->Resource();
+			commandList->SetGraphicsRootShaderResourceView(2, matBuffer->GetGPUVirtualAddress());
+			instBuffer = mCurrFrameResource->InstanceBuffer->Resource();
+			commandList->SetGraphicsRootShaderResourceView(3, instBuffer->GetGPUVirtualAddress());
+			auto passCB = mCurrFrameResource->PassCB->Resource();
+			commandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+			if(mDepthOnlyMode)
+			{
+				// Bind null SRV for shadow map pass.
+				commandList->SetGraphicsRootDescriptorTable(4, mNullSrv);
+			}
+			else
+			{
 				CD3DX12_GPU_DESCRIPTOR_HANDLE shadowMapDescriptor(mSrvDescriptorHeap->GetGPUDescriptorHandleForHeapStart());
 				shadowMapDescriptor.Offset(mShadowMapHeapIndex, mDeviceResources->GetCbvSrvUavSize());
 				commandList->SetGraphicsRootDescriptorTable(4, shadowMapDescriptor);
+			}
 
-				mDeviceResources->PreparePresent();
+			mDeviceResources->PreparePresent(mDepthOnlyMode);
 
+			if(mDepthOnlyMode)
+			{
+				if (mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
+				{
+					commandList->SetPipelineState(mPSOs["depth_opaque"].Get());
+					DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
+				}
+				if (mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
+				{
+					commandList->SetPipelineState(mPSOs["depthInst_opaque"].Get());
+					DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::OpaqueInst]);
+				}
+			}
+			else
+			{
 				if (mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
 				{
 					commandList->SetPipelineState(mPSOs["opaque"].Get());
@@ -465,49 +446,49 @@ namespace handwork
 					commandList->SetPipelineState(mPSOs["debug"].Get());
 					DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Debug]);
 				}
+			}
 
-				if(mContinousMode)
-					mDeviceResources->Present(mCurrFrameResource->Fence);
+			if (mContinousMode)
+				mDeviceResources->Present(mCurrFrameResource->Fence);
+			else
+			{
+				// Indicate a state transition on the resource usage.
+				if (mDeviceResources->GetMsaaQuality() <= 0)
+				{
+					commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeviceResources->CurrentBackBuffer(),
+						D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+				}
 				else
 				{
-					// Indicate a state transition on the resource usage.
-					if (mDeviceResources->GetMsaaQuality() <= 0)
+					D3D12_RESOURCE_BARRIER barriers[2] =
 					{
-						commandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mDeviceResources->CurrentBackBuffer(),
-							D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
-					}
-					else
-					{
-						D3D12_RESOURCE_BARRIER barriers[2] =
-						{
-							CD3DX12_RESOURCE_BARRIER::Transition(mDeviceResources->CurrentOffScreenBuffer(),
-							D3D12_RESOURCE_STATE_RENDER_TARGET,	D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
-							CD3DX12_RESOURCE_BARRIER::Transition(mDeviceResources->CurrentBackBuffer(),
-							D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST)
-						};
-						commandList->ResourceBarrier(2, barriers);
+						CD3DX12_RESOURCE_BARRIER::Transition(mDeviceResources->CurrentOffScreenBuffer(),
+						D3D12_RESOURCE_STATE_RENDER_TARGET,	D3D12_RESOURCE_STATE_RESOLVE_SOURCE),
+						CD3DX12_RESOURCE_BARRIER::Transition(mDeviceResources->CurrentBackBuffer(),
+						D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RESOLVE_DEST)
+					};
+					commandList->ResourceBarrier(2, barriers);
 
-						commandList->ResolveSubresource(mDeviceResources->CurrentBackBuffer(), 0,
-							mDeviceResources->CurrentOffScreenBuffer(), 0, mDeviceResources->GetBackBufferFormat());
+					commandList->ResolveSubresource(mDeviceResources->CurrentBackBuffer(), 0,
+						mDeviceResources->CurrentOffScreenBuffer(), 0, mDeviceResources->GetBackBufferFormat());
 
-						D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-							mDeviceResources->CurrentBackBuffer(),
-							D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT);
-						commandList->ResourceBarrier(1, &barrier);
-					}
-
-					// Done recording commands.
-					ThrowIfFailed(commandList->Close());
-					// Add the command list to the queue for execution.
-					ID3D12CommandList* cmdsLists[] = { commandList };
-					mDeviceResources->GetCommandQueue()->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
-
-					mDeviceResources->ManualSwapBackBuffers();
-					mCurrFrameResource->Fence++;
-
-					// Wait to finish.
-					mDeviceResources->FlushCommandQueue();
+					D3D12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+						mDeviceResources->CurrentBackBuffer(),
+						D3D12_RESOURCE_STATE_RESOLVE_DEST, D3D12_RESOURCE_STATE_PRESENT);
+					commandList->ResourceBarrier(1, &barrier);
 				}
+
+				// Done recording commands.
+				ThrowIfFailed(commandList->Close());
+				// Add the command list to the queue for execution.
+				ID3D12CommandList* cmdsLists[] = { commandList };
+				mDeviceResources->GetCommandQueue()->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+				mDeviceResources->ManualSwapBackBuffers();
+				mCurrFrameResource->Fence++;
+
+				// Wait to finish.
+				mDeviceResources->FlushCommandQueue();
 			}
 		}
 
@@ -617,7 +598,7 @@ namespace handwork
 				item->IndexCount = item->SubMesh->IndexCount;
 				item->StartIndexLocation = item->SubMesh->StartIndexLocation;
 				item->BaseVertexLocation = item->SubMesh->BaseVertexLocation;
-				if(e.Instances.size() == 0)
+				if (e.Instances.size() == 0)
 				{
 					// No instancing.
 					item->World = e.World;
@@ -641,7 +622,7 @@ namespace handwork
 				// Update scene bounds.
 				if (layer != RenderLayer::Debug && layer != RenderLayer::Count)
 				{
-					if(item->Instances.size() == 0)
+					if (item->Instances.size() == 0)
 					{
 						// No instancing.
 						tempCache = d3dUtil::ConvertToXMFLOAT4x4(item->World);
@@ -651,7 +632,7 @@ namespace handwork
 						BoundingSphere sphere = item->SubMesh->SphereBounds;
 						sphere.Transform(tempSphere, transform);
 
-						if(mSceneSphereBounds.Radius <= 0.0f)
+						if (mSceneSphereBounds.Radius <= 0.0f)
 						{
 							mSceneBoxBounds = tempBox;
 							mSceneSphereBounds = tempSphere;
@@ -665,7 +646,7 @@ namespace handwork
 					else
 					{
 						// Instancing.
-						for(auto& inst : item->Instances)
+						for (auto& inst : item->Instances)
 						{
 							tempCache = d3dUtil::ConvertToXMFLOAT4x4(inst.World);
 							const XMMATRIX transform = XMLoadFloat4x4(&tempCache);
@@ -717,7 +698,7 @@ namespace handwork
 		{
 			if (name.empty())
 				return nullptr;
-			for(auto& item : mRitemLayer[(int)layer])
+			for (auto& item : mRitemLayer[(int)layer])
 			{
 				if (item->Name == name)
 					return item;
@@ -905,6 +886,10 @@ namespace handwork
 			mShaders["shadowOpaquePS"] = d3dUtil::CompileShader(L"shaders\\shadows.hlsl", nullptr, "PS", "ps_5_1");
 			mShaders["shadowInstVS"] = d3dUtil::CompileShader(L"shaders\\shadows.hlsl", nullptr, "VSInst", "vs_5_1");
 
+			mShaders["depthVS"] = d3dUtil::CompileShader(L"shaders\\depth.hlsl", nullptr, "VS", "vs_5_1");
+			mShaders["depthOpaquePS"] = d3dUtil::CompileShader(L"shaders\\depth.hlsl", nullptr, "PS", "ps_5_1");
+			mShaders["depthInstVS"] = d3dUtil::CompileShader(L"shaders\\depth.hlsl", nullptr, "VSInst", "vs_5_1");
+
 			mShaders["debugVS"] = d3dUtil::CompileShader(L"shaders\\debug.hlsl", nullptr, "VS", "vs_5_1");
 			mShaders["debugPS"] = d3dUtil::CompileShader(L"shaders\\debug.hlsl", nullptr, "PS", "ps_5_1");
 
@@ -997,6 +982,42 @@ namespace handwork
 			ThrowIfFailed(device->CreateGraphicsPipelineState(&opaqueInstPsoDesc, IID_PPV_ARGS(&mPSOs["opaqueInst"])));
 			opaqueInstPsoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 			ThrowIfFailed(device->CreateGraphicsPipelineState(&opaqueInstPsoDesc, IID_PPV_ARGS(&mPSOs["opaqueInst_wireframe"])));
+
+			//
+			// PSO for depth opaque objects.
+			//
+
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC depthPsoDesc = basePsoDesc;
+			depthPsoDesc.VS =
+			{
+				reinterpret_cast<BYTE*>(mShaders["depthVS"]->GetBufferPointer()),
+				mShaders["depthVS"]->GetBufferSize()
+			};
+			depthPsoDesc.PS =
+			{
+				reinterpret_cast<BYTE*>(mShaders["depthOpaquePS"]->GetBufferPointer()),
+				mShaders["depthOpaquePS"]->GetBufferSize()
+			};
+			if (msaaQuality > 0)
+			{
+				depthPsoDesc.RasterizerState.MultisampleEnable = true;
+				depthPsoDesc.SampleDesc.Count = msaaCount;
+				depthPsoDesc.SampleDesc.Quality = msaaQuality - 1;
+			}
+			ThrowIfFailed(device->CreateGraphicsPipelineState(&depthPsoDesc, IID_PPV_ARGS(&mPSOs["depth_opaque"])));
+
+			//
+			// PSO for depth instance objects.
+			//
+
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC depthInstPsoDesc = depthPsoDesc;
+			depthInstPsoDesc.VS =
+			{
+				reinterpret_cast<BYTE*>(mShaders["depthInstVS"]->GetBufferPointer()),
+				mShaders["depthInstVS"]->GetBufferSize()
+			};
+			ThrowIfFailed(device->CreateGraphicsPipelineState(&depthInstPsoDesc, IID_PPV_ARGS(&mPSOs["depthInst_opaque"])));
+
 
 			//
 			// PSO for shadow map pass.
@@ -1164,7 +1185,7 @@ namespace handwork
 				cmdList->IASetIndexBuffer(&ri->Geo->IndexBufferView());
 				cmdList->IASetPrimitiveTopology(ri->PrimitiveType);
 
-				if(ri->Instances.size() == 0)
+				if (ri->Instances.size() == 0)
 				{
 					// No instancing.
 					cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress + ri->ObjCBIndex * objCBByteSize);
@@ -1202,12 +1223,12 @@ namespace handwork
 			// Specify the buffers we are going to render to.
 			commandList->OMSetRenderTargets(0, nullptr, false, &mShadowMap->Dsv());
 
-			if(mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
+			if (mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
 			{
 				commandList->SetPipelineState(mPSOs["shadow_opaque"].Get());
 				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
 			}
-			if(mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
+			if (mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
 			{
 				commandList->SetPipelineState(mPSOs["shadowInst_opaque"].Get());
 				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::OpaqueInst]);
@@ -1242,12 +1263,12 @@ namespace handwork
 			// Specify the buffers we are going to render to.
 			commandList->OMSetRenderTargets(1, &normalMapRtv, true, &mDeviceResources->Dsv());
 
-			if(mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
+			if (mRitemLayer[(int)RenderLayer::Opaque].size() != 0)
 			{
 				commandList->SetPipelineState(mPSOs["drawNormals"].Get());
 				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::Opaque]);
 			}
-			if(mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
+			if (mRitemLayer[(int)RenderLayer::OpaqueInst].size() != 0)
 			{
 				commandList->SetPipelineState(mPSOs["drawNormalsInst"].Get());
 				DrawRenderItems(commandList, mRitemLayer[(int)RenderLayer::OpaqueInst]);

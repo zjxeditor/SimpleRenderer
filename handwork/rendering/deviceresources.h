@@ -43,7 +43,7 @@ namespace handwork
 			void HandleDeviceLost();
 			void RegisterDeviceNotify(IDeviceNotify* deviceNotify);
 			void Trim();
-			void PreparePresent();
+			void PreparePresent(bool clearDepth = false);
 			void Present(UINT64& currentFrameFence);
 			void FlushCommandQueue();
 
@@ -75,7 +75,6 @@ namespace handwork
 			ID3D12Resource* CurrentOffScreenBuffer() const;
 			ID3D12Resource* DepthStencilBufferMS() const;
 			ID3D12Resource* ReadBackBuffer() const;
-			ID3D12Resource* ReadBackDepthBuffer() const;
 			void ManualSwapBackBuffers(){ mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount; }
 
 			UINT GetRtvSize() const { return mRtvDescriptorSize; }
@@ -90,7 +89,6 @@ namespace handwork
 
 			// Note that the result need to be manually freed.
 			RetrieveImageData* RetrieveRenderTargetBuffer();
-			RetrieveImageData* RetrieveDepthBufferBuffer();
 			void SaveToLocalImage(RetrieveImageData* data, const std::string& file);
 
 		private:
@@ -141,9 +139,7 @@ namespace handwork
 
 			// Readback
 			Microsoft::WRL::ComPtr<ID3D12Resource> mReadBackBuffer;
-			Microsoft::WRL::ComPtr<ID3D12Resource> mReadBackDepthBuffer;
 			UINT64 mReadBackRowPitch = 0;
-			UINT64 mReadBackDepthRowPitch = 0;
 
 			// Direct3D properties.
 			D3D_DRIVER_TYPE md3dDriverType = D3D_DRIVER_TYPE_HARDWARE;

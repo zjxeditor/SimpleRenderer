@@ -68,8 +68,8 @@ void MyApp::PreInitialize()
 	mMaxRenderHeight = 1080;
 	mClientWidth = 800;
 	mClientHeight = 600;
-	mContinousMode = false;
-	mDepthOnlyMode = false;
+	mContinousMode = true;
+	mDepthOnlyMode = true;
 
 	// Initialize Google's logging library.
 	FLAGS_log_dir = "./log/";
