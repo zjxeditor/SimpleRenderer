@@ -41,7 +41,7 @@ VertexOut VSInst(VertexIn vin, uint instanceID : SV_InstanceID)
     return vout;
 }
 
-// Output the depth value.
+// Output the depth value into three channels rgb to remain the accuracy.
 float4 PS(VertexOut pin) : SV_Target
 {
     float depth = pin.PosH.z / pin.PosH.w;

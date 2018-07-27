@@ -19,7 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp" />
+    <ClCompile Include="demo0.cpp" />
+    <ClCompile Include="demo1.cpp" />
     <ClCompile Include="mesh\fbxloader.cpp" />
     <ClCompile Include="mesh\meshtopology.cpp" />
     <ClCompile Include="mesh\subdivision.cpp" />

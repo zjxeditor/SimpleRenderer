@@ -305,15 +305,6 @@ namespace handwork
 		{
 			stencilOutput = std::unique_ptr<StencilOutputBase>(new StencilOutputCPU(normalStencils, limitStencils, vertsNum, true));
 		}
-		/*else if (kernel == KernelType::kGLCompute)
-		{
-			std::shared_ptr<Osd::EvaluatorCacheT<Osd::GLComputeEvaluator>> cache(new Osd::EvaluatorCacheT<Osd::GLComputeEvaluator>());
-			auto temp = std::unique_ptr<StencilOutputBase>(new StencilOutput<Osd::GLVertexBuffer,
-				Osd::GLVertexBuffer,
-				Osd::GLStencilTableSSBO,
-				Osd::GLComputeEvaluator>(controlStencils, vertsNum,	cache));
-			stencilOutput = std::move(temp);
-		}*/
 		else
 		{
 			LOG(FATAL) << "Unsupport kernel type for subdivision.";

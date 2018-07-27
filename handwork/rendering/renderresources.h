@@ -14,7 +14,7 @@ namespace handwork
 {
 	namespace rendering
 	{
-		// Divide rander items by pixel shader.
+		// Divide render items by pixel shader.
 		enum class RenderLayer : int
 		{
 			Opaque = 0,
@@ -28,7 +28,7 @@ namespace handwork
 		// The main render class for GPU draw logic. It support both continuous mode and discrete model.
 		// For continous mode, it will do render work one after another to provide stable video image output. CPU will not always wait for GPU to improve performance.
 		// For discrete mode, it will not out present the rendered image. And, it will do render work only once for each render call. You will need to manuall fetch 
-		// the render target buffer and depth buffer. In discrete mode, is depth only moden is enabled, it will only draw to the depth buffer.
+		// the render target buffer and depth buffer. In discrete mode, is depth only model is enabled, it will only draw to the depth buffer.
 		class RenderResources
 		{
 		public:

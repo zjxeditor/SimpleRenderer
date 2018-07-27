@@ -721,7 +721,7 @@ namespace handwork
 			slotRootParameter[3].InitAsShaderResourceView(1);
 			slotRootParameter[4].InitAsDescriptorTable(1, &texTable0, D3D12_SHADER_VISIBILITY_PIXEL);
 
-			auto staticSamplers = GetStaticSamplers();
+			auto staticSamplers = GetStaticSamplers(); 
 
 			// A root signature is an array of root parameters.
 			CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(5, slotRootParameter,
@@ -867,7 +867,7 @@ namespace handwork
 				mDeviceResources->GetDsv(2));
 
 			mSsao->BuildDescriptors(
-				mDeviceResources->DepthStencilBufferMS(),
+				mDeviceResources->DepthStencilBuffer(),
 				GetCpuSrv(mSsaoHeapIndexStart),
 				GetGpuSrv(mSsaoHeapIndexStart),
 				mDeviceResources->GetRtv(mDeviceResources->GetSwapChainBufferCount()),

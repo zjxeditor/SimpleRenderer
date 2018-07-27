@@ -63,7 +63,6 @@
     <ClCompile Include="rendering\app.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp" />
     <ClCompile Include="rendering\shadowmap.cpp">
       <Filter>rendering</Filter>
     </ClCompile>
@@ -79,6 +78,8 @@
     <ClCompile Include="mesh\subdivision.cpp">
       <Filter>mesh</Filter>
     </ClCompile>
+    <ClCompile Include="demo0.cpp" />
+    <ClCompile Include="demo1.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utility\fileutil.h">

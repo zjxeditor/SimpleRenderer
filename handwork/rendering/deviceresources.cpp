@@ -280,8 +280,8 @@ namespace handwork
 				depthStencilDesc.Height = mRenderTargetSize.y;
 				depthStencilDesc.DepthOrArraySize = 1;
 				depthStencilDesc.MipLevels = 1;
-				// Correction 11/12/2016: SSAO chapter requires an SRV to the depth buffer to read from 
-				// the depth buffer.  Therefore, because we need to create two views to the same resource:
+				// SSAO requires an SRV to the depth buffer to read from the depth buffer. 
+				// Therefore, because we need to create two views to the same resource:
 				//   1. SRV format: DXGI_FORMAT_R24_UNORM_X8_TYPELESS
 				//   2. DSV Format: DXGI_FORMAT_D24_UNORM_S8_UINT
 				// we need to create the depth buffer resource with a typeless format.  
@@ -369,8 +369,8 @@ namespace handwork
 				depthStencilDesc.Height = mRenderTargetSize.y;
 				depthStencilDesc.DepthOrArraySize = 1;
 				depthStencilDesc.MipLevels = 1;
-				// Correction 11/12/2016: SSAO chapter requires an SRV to the depth buffer to read from 
-				// the depth buffer.  Therefore, because we need to create two views to the same resource:
+				// SSAO requires an SRV to the depth buffer to read from the depth buffer. 
+				// Therefore, because we need to create two views to the same resource:
 				//   1. SRV format: DXGI_FORMAT_R24_UNORM_X8_TYPELESS
 				//   2. DSV Format: DXGI_FORMAT_D24_UNORM_S8_UINT
 				// we need to create the depth buffer resource with a typeless format.  

@@ -10,8 +10,7 @@ namespace handwork
 	enum class KernelType
 	{
 		kCPU = 0,
-		kOPENMP,
-		kDXCompute
+		kOPENMP
 	};
 
 	class StencilOutputBase
