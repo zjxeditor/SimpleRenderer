@@ -22,7 +22,7 @@ namespace handwork
 			mContinousMode(continousMode),
 			mDepthOnlyMode(depthOnlyMode)
 		{
-			mAmbientLight = { 0.4f, 0.4f, 0.6f, 1.0f };
+			mAmbientLight = { 0.4f, 0.4f, 0.4f, 1.0f };
 			mDirectLights[0].Direction = { 0.57735f, -0.57735f, 0.57735f };
 			mDirectLights[0].Strength = { 0.4f, 0.4f, 0.5f };
 			mDirectLights[1].Direction = { -0.57735f, -0.57735f, 0.57735f };
