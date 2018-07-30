@@ -1,4 +1,4 @@
-//// Demonstrate the usage of fbx importer and mesh render.
+//// Demonstrate the usage of mesh subdivision and limit surface point evaluation.
 //
 //#include <stdio.h>
 //#include <io.h>
@@ -12,14 +12,14 @@
 //#include "mesh/fbxloader.h"
 //#include "mesh/meshtopology.h"
 //#include "utility/stringprint.h"
+//#include "mesh/subdivision.h"
 //
 //using namespace handwork;
 //using namespace handwork::rendering;
 //
 //
 //// Application entry point.
-//int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd)
-//{
+//int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance, PSTR cmdLine, int showCmd) {
 //#if defined(DEBUG) | defined(_DEBUG)
 //	// Enable run-time memory check for debug builds.
 //	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -34,15 +34,12 @@
 //#endif
 //
 //	int res = 0;
-//	try
-//	{
+//	try {
 //		MyApp theApp(hInstance);
 //		if (!theApp.Initialize())
 //			return 0;
 //		res = theApp.Run();
-//	}
-//	catch (DxException& e)
-//	{
+//	} catch (DxException& e) {
 //		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
 //	}
 //
@@ -58,10 +55,10 @@
 //std::vector<MeshJoint> MeshSkeleton;
 //std::vector<MeshVertex> MeshVertices;
 //std::vector<int> MeshIndices;
+//std::unique_ptr<SubDivision> MeshSubDiv;
 //float fileScale = 0.0f;
 //
-//void MyApp::PreInitialize()
-//{
+//void MyApp::PreInitialize() {
 //	// Config rendering pass.
 //	mMsaaType = MSAATYPE::MSAAx4;
 //	mMaxRenderWidth = 1920;
@@ -76,18 +73,23 @@
 //	google::InitGoogleLogging("handwork");
 //}
 //
-//void MyApp::PostInitialize()
-//{
+//void MyApp::PostInitialize() {
 //	// Set up camera.
 //	mCamera->LookAt(Vector3f(0.0f, 10.0f, -20.0f), Vector3f(0.0f, 0.0f, 0.0f), Vector3f(0.0f, 1.0f, 0.0f));
 //
 //	// Import 3d model
 //	std::string file = "./data/hand.fbx";
-//	ImportFbx(file, fileScale, MeshSkeleton, MeshVertices, MeshIndices);
+//	bool flag = ImportFbx(file, fileScale, MeshSkeleton, MeshVertices, MeshIndices);
+//
+//	// Precompute for subdivision
+//	std::vector<Vector3f> positions(MeshVertices.size());
+//	std::transform(MeshVertices.begin(), MeshVertices.end(), positions.begin(), [](MeshVertex& a) {return a.Position; });
+//
+//	MeshSubDiv = std::make_unique<SubDivision>(10, KernelType::kCPU, 1, positions.size(), MeshIndices.size() / 3, &MeshIndices[0]);
+//	MeshSubDiv->UpdateSrc(&positions[0].x);
 //}
 //
-//void MyApp::AddRenderData()
-//{
+//void MyApp::AddRenderData() {
 //#pragma region Add Materials
 //
 //	// Add materials
@@ -97,7 +99,7 @@
 //	matyellow.FresnelR0 = Vector3f(0.05f, 0.05f, 0.05f);
 //	matyellow.Roughness = 0.3f;
 //	mRenderResources->AddMaterial(matyellow);
-//	
+//
 //	Material matred;
 //	matred.Name = "red";
 //	matred.DiffuseAlbedo = Vector4f(0.89f, 0.09f, 0.37f, 1.0f);
@@ -123,25 +125,33 @@
 //
 //#pragma region Add Geometry
 //
+//	int nVertsSD;
+//	auto vertsData = reinterpret_cast<const Vector3f*>(MeshSubDiv->EvaluateNormal(nVertsSD));
+//	int level = MeshSubDiv->GetTopologyLevelNum() - 1;
+//	auto topology = MeshSubDiv->GetTopology(level);
+//	for (int i = 0; i < level; ++i) {
+//		vertsData += MeshSubDiv->GetTopology(i)->VertsNum;
+//	}
+//
 //	// Add mesh geometry data
 //	SubmeshGeometry submesh;
-//	submesh.VertexCount = (UINT)MeshVertices.size();
-//	submesh.IndexCount = (UINT)MeshIndices.size();
+//	submesh.VertexCount = topology->VertsNum;
+//	submesh.IndexCount = topology->FacesNum * 3;
 //	submesh.StartIndexLocation = 0;
 //	submesh.BaseVertexLocation = 0;
 //
 //	std::unordered_map<std::string, SubmeshGeometry> drawArgs;
 //	drawArgs["mesh"] = submesh;
 //
-//	std::vector<Vertex> vertices(MeshVertices.size());
-//	for (size_t i = 0; i < vertices.size(); ++i)
-//	{
-//		vertices[i].Pos = MeshVertices[i].Position;
-//		vertices[i].Normal = MeshVertices[i].Normal;
-//		vertices[i].TangentU = MeshVertices[i].Tangent;
+//	//std::vector<Vertex> vertices(MeshVertices.size());
+//	std::vector<Vertex> vertices(topology->VertsNum);
+//	for (size_t i = 0; i < vertices.size(); ++i) {
+//		vertices[i].Pos = vertsData[i];
+//		vertices[i].Normal = Vector3f(0.0f, 0.0f, 1.0f);
+//		vertices[i].TangentU = Vector3f(0.0f, 0.0f, 1.0f);
 //	}
 //	std::vector<std::uint32_t> indices;
-//	indices.insert(indices.end(), std::begin(MeshIndices), std::end(MeshIndices));
+//	indices.insert(indices.end(), std::begin(topology->Indices), std::end(topology->Indices));
 //
 //	mRenderResources->AddGeometryData(vertices, indices, drawArgs, "mesh");
 //
@@ -150,7 +160,7 @@
 //	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 10, 10);
 //	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.5f, 1.0f, 10, 10);
 //	GeometryGenerator::MeshData quad = geoGen.CreateQuad(0.0f, 0.0f, 1.0f, 1.0f, 0.0f);
-//	 
+//
 //	UINT sphereVertexOffset = 0;
 //	UINT cylinderVertexOffset = (UINT)sphere.Vertices.size();
 //	UINT quadVertexOffset = cylinderVertexOffset + (UINT)cylinder.Vertices.size();
@@ -183,20 +193,17 @@
 //	vertices.clear();
 //	vertices.resize(sphere.Vertices.size() + cylinder.Vertices.size() + quad.Vertices.size());
 //	UINT k = 0;
-//	for (size_t i = 0; i < sphere.Vertices.size(); ++i, ++k)
-//	{
+//	for (size_t i = 0; i < sphere.Vertices.size(); ++i, ++k) {
 //		vertices[k].Pos = sphere.Vertices[i].Position;
 //		vertices[k].Normal = sphere.Vertices[i].Normal;
 //		vertices[k].TangentU = sphere.Vertices[i].TangentU;
 //	}
-//	for (size_t i = 0; i < cylinder.Vertices.size(); ++i, ++k)
-//	{
+//	for (size_t i = 0; i < cylinder.Vertices.size(); ++i, ++k) {
 //		vertices[k].Pos = cylinder.Vertices[i].Position;
 //		vertices[k].Normal = cylinder.Vertices[i].Normal;
 //		vertices[k].TangentU = cylinder.Vertices[i].TangentU;
 //	}
-//	for (size_t i = 0; i < quad.Vertices.size(); ++i, ++k)
-//	{
+//	for (size_t i = 0; i < quad.Vertices.size(); ++i, ++k) {
 //		vertices[k].Pos = quad.Vertices[i].Position;
 //		vertices[k].Normal = quad.Vertices[i].Normal;
 //		vertices[k].TangentU = quad.Vertices[i].TangentU;
@@ -230,11 +237,85 @@
 //	meshRitem.DrawArgName = "mesh";
 //	meshRitem.PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 //	renderItems.push_back(meshRitem);
+//	mRenderResources->AddRenderItem(renderItems, RenderLayer::WireFrame);
+//
+//	int nLimitSD;
+//	auto limitsData = reinterpret_cast<const Vector3f*>(MeshSubDiv->EvaluateLimit(nLimitSD));
+//	renderItems.clear();
+//	RenderItemData pointInstItem;
+//	pointInstItem.GeoName = "shapeGeo";
+//	pointInstItem.DrawArgName = "sphere";
+//	pointInstItem.PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+//	pointInstItem.Instances.resize(nLimitSD);
+//	for (int i = 0; i < nLimitSD; ++i) {
+//		auto& inst = pointInstItem.Instances[i];
+//		inst.MatName = "blue";
+//		inst.World = Matrix4x4::Mul(worldBase, Matrix4x4::Mul(Translate(*(limitsData + i * 3)).GetMatrix(), Scale(0.5f, 0.5f, 0.5f).GetMatrix()));
+//		//inst.World = ConvertToXMFLOAT4X4(worldBase);
+//	}
+//	renderItems.push_back(pointInstItem);
+//	mRenderResources->AddRenderItem(renderItems, RenderLayer::OpaqueInst);
+//
+//	renderItems.clear();
+//	std::vector<Matrix4x4> globalTransform(MeshSkeleton.size());
+//	std::vector<Vector3f> jointsWorldPos(MeshSkeleton.size());
+//	float jointScale = 4.0f;
+//	for (size_t i = 0; i < MeshSkeleton.size(); ++i) {
+//		Matrix4x4 localTransform = Translate(MeshSkeleton[i].Translation).GetMatrix();
+//		localTransform = Matrix4x4::Mul(localTransform, RotateZ(MeshSkeleton[i].Rotation.z).GetMatrix());
+//		localTransform = Matrix4x4::Mul(localTransform, RotateY(MeshSkeleton[i].Rotation.y).GetMatrix());
+//		localTransform = Matrix4x4::Mul(localTransform, RotateX(MeshSkeleton[i].Rotation.x).GetMatrix());
+//		localTransform = Matrix4x4::Mul(localTransform,
+//			Scale(MeshSkeleton[i].Scaling.x, MeshSkeleton[i].Scaling.y, MeshSkeleton[i].Scaling.z).GetMatrix());
+//
+//		// Calulate global transform.
+//		if (MeshSkeleton[i].Parent < 0)
+//			globalTransform[i] = localTransform;
+//		else
+//			globalTransform[i] = Matrix4x4::Mul(globalTransform[MeshSkeleton[i].Parent], localTransform);
+//		jointsWorldPos[i] = Transform(globalTransform[i], Matrix4x4())(Vector3f(), VectorType::Point);
+//
+//		// Add bone
+//		if (MeshSkeleton[i].Parent >= 0) {
+//			Vector3f boneVector = jointsWorldPos[i] - jointsWorldPos[MeshSkeleton[i].Parent];
+//			float boneScale = boneVector.Length();
+//			boneVector = Normalize(boneVector);
+//			float phi = std::acos(Clamp(boneVector.y, -1, 1));
+//			phi = -phi;
+//			float ct = boneVector.x / sqrt(boneVector.x * boneVector.x + boneVector.z * boneVector.z);
+//			float theta = std::acos(Clamp(ct, -1, 1));
+//			if (boneVector.z > 0)
+//				theta = -theta;
+//
+//			Matrix4x4 boneWorld = Translate(Vector3f(0.0f, 0.5f, 0.0f)).GetMatrix();
+//			boneWorld = Matrix4x4::Mul(Scale(jointScale / 2, boneScale, jointScale / 2).GetMatrix(), boneWorld);
+//			boneWorld = Matrix4x4::Mul(RotateZ(Degrees(phi)).GetMatrix(), boneWorld);
+//			boneWorld = Matrix4x4::Mul(RotateY(Degrees(theta)).GetMatrix(), boneWorld);
+//			boneWorld = Matrix4x4::Mul(Translate(jointsWorldPos[MeshSkeleton[i].Parent]).GetMatrix(), boneWorld);
+//
+//			RenderItemData boneRitem;
+//			boneRitem.World = Matrix4x4::Mul(worldBase, boneWorld);
+//			boneRitem.MatName = "green";
+//			boneRitem.GeoName = "shapeGeo";
+//			boneRitem.DrawArgName = "cylinder";
+//			boneRitem.PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+//			renderItems.push_back(boneRitem);
+//		}
+//
+//		RenderItemData jointRitem;
+//		jointRitem.World = Matrix4x4::Mul(Matrix4x4::Mul(worldBase, Translate(jointsWorldPos[i]).GetMatrix()),
+//			Scale(jointScale, jointScale, jointScale).GetMatrix());
+//		jointRitem.MatName = "red";
+//		jointRitem.GeoName = "shapeGeo";
+//		jointRitem.DrawArgName = "sphere";
+//		jointRitem.PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+//		renderItems.push_back(jointRitem);
+//	}
+//
 //	mRenderResources->AddRenderItem(renderItems, RenderLayer::Opaque);
 //
 //#pragma endregion Add Render Items
 //}
 //
 //// Entrance in discrete mode.
-//void  MyApp::DiscreteEntrance() {
-//}
+//void  MyApp::DiscreteEntrance() {}

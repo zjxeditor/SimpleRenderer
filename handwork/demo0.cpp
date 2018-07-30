@@ -1,3 +1,5 @@
+//// Demonstrate the basic usage of the simple render system.
+//
 //#include <stdio.h>
 //#include <io.h>
 //#include <fcntl.h>
@@ -301,9 +303,4 @@
 //
 //// Entrance in discrete mode.
 //void  MyApp::DiscreteEntrance() {
-//	std::cout << "enter discrete mode" << std::endl;
-//	mRenderResources->Update();
-//	mRenderResources->Render();
-//	auto res = mDeviceResources->RetrieveRenderTargetBuffer();
-//	mDeviceResources->SaveToLocalImage(res, "screenshot.bmp");
 //}
