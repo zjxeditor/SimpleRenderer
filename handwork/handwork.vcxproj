@@ -23,6 +23,7 @@
     <ClCompile Include="demo1.cpp" />
     <ClCompile Include="demo2.cpp" />
     <ClCompile Include="demo3.cpp" />
+    <ClCompile Include="demo4.cpp" />
     <ClCompile Include="mesh\fbxloader.cpp" />
     <ClCompile Include="mesh\meshtopology.cpp" />
     <ClCompile Include="mesh\subdivision.cpp" />

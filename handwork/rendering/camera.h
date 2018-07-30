@@ -45,6 +45,9 @@ namespace handwork
 			// Set frustum. Aspect = w / h, fov in degree.
 			void SetLens(float aspect);
 
+			// Set the Y fov.
+			void SetFovY(float fov);
+
 			// Define camera space via LookAt parameters.
 			void LookAt(const Vector3f& pos, const Vector3f& target, const Vector3f& up);
 

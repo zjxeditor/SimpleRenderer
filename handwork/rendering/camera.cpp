@@ -12,8 +12,8 @@ namespace handwork
 			mNearZ = zn;
 			mFarZ = zf;
 
-			mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f*mFovY);
-			mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f*mFovY);
+			mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f * Radians(mFovY));
+			mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f * Radians(mFovY));
 
 			SetLens(1.0f);
 		}
@@ -104,6 +104,13 @@ namespace handwork
 		{
 			// cache properties
 			mAspect = aspect;
+			mProj = Perspective(mFovY, mNearZ, mFarZ, mAspect).GetMatrix();
+		}
+
+		void Camera::SetFovY(float fov) {
+			mFovY = fov;
+			mNearWindowHeight = 2.0f * mNearZ * tanf(0.5f*Radians(mFovY));
+			mFarWindowHeight = 2.0f * mFarZ * tanf(0.5f*Radians(mFovY));
 			mProj = Perspective(mFovY, mNearZ, mFarZ, mAspect).GetMatrix();
 		}
 

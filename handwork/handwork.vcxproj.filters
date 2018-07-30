@@ -82,6 +82,7 @@
     <ClCompile Include="demo1.cpp" />
     <ClCompile Include="demo2.cpp" />
     <ClCompile Include="demo3.cpp" />
+    <ClCompile Include="demo4.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="utility\fileutil.h">
