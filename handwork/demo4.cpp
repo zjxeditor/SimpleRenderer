@@ -123,7 +123,11 @@ void MyApp::AddRenderData() {
 	Material mat0;
 	mat0.Name = "mat0";
 	//mat0.DiffuseAlbedo = Vector4f(0.118f, 0.380f, 0.910f, 1.0f);
+	float metalness = 0.8f;
 	mat0.DiffuseAlbedo = Vector4f(0.976, 0.937f, 0.380f, 1.0f);
+	mat0.DiffuseAlbedo.x *= (1.0f - metalness);
+	mat0.DiffuseAlbedo.y *= (1.0f - metalness);
+	mat0.DiffuseAlbedo.z *= (1.0f - metalness);
 	mat0.FresnelR0 = Vector3f(1.022f, 0.782f, 0.344f);
 	mat0.Roughness = 0.55f;
 
