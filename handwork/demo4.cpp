@@ -1,4 +1,4 @@
-// Demonstrate the material model in the render system.
+// Demonstrate the material model in the render system. Support CookTorrence and BlinnPhong
 
 #include <stdio.h>
 #include <io.h>
@@ -35,19 +35,13 @@ protected:
 	virtual void DiscreteEntrance() override;
 
 private:
-	float mLightRotationAngle = 0.0f;
-	Vector3f mBaseLightDirections[3] = {
-		Vector3f(0.57735f, -0.57735f, 0.57735f),
-		Vector3f(1.0f, 1.0f, 1.0f),
-		Vector3f(1.0f, 1.0f, 1.0f)
-	};
 	handwork::rendering::Light mDirectLights[3];
 };
 
 
 MyApp::MyApp(HINSTANCE hInstance) : App(hInstance) {
-	mDirectLights[0].Direction = { 0.0f, -0.1f, 1.0f };
-	mDirectLights[0].Strength = { 0.9f, 0.9f, 0.9f };
+	mDirectLights[0].Direction = { 0.0f, 0.0f, 1.0f };
+	mDirectLights[0].Strength = { 0.8f, 0.8f, 0.8f };
 	mDirectLights[1].Direction = { 1.0f, 1.0f, 1.0f };
 	mDirectLights[1].Strength = { 0.0f, 0.0f, 0.0f };
 	mDirectLights[2].Direction = { 1.0f, 1.0f, 1.0f };
@@ -122,15 +116,9 @@ void MyApp::AddRenderData() {
 	// Add materials
 	Material mat0;
 	mat0.Name = "mat0";
-	//mat0.DiffuseAlbedo = Vector4f(0.118f, 0.380f, 0.910f, 1.0f);
-	float metalness = 0.8f;
-	mat0.DiffuseAlbedo = Vector4f(0.976, 0.937f, 0.380f, 1.0f);
-	mat0.DiffuseAlbedo.x *= (1.0f - metalness);
-	mat0.DiffuseAlbedo.y *= (1.0f - metalness);
-	mat0.DiffuseAlbedo.z *= (1.0f - metalness);
-	mat0.FresnelR0 = Vector3f(1.022f, 0.782f, 0.344f);
-	mat0.Roughness = 0.55f;
-
+	mat0.Albedo = Vector3f(0.976, 0.937f, 0.380f);
+	mat0.Roughness = 0.6f;
+	mat0.Metalness = 0.8f;
 	mRenderResources->AddMaterial(mat0);
 
 	// Add geometry data

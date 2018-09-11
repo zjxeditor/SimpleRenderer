@@ -78,9 +78,9 @@ namespace handwork
 
 		struct MaterialData
 		{
-			Vector4f DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-			Vector3f FresnelR0 = { 0.01f, 0.01f, 0.01f };
+			Vector3f Albedo = { 1.0f, 1.0f, 1.0f};	//Fresnel/Diffuse
 			float Roughness = 0.5f;
+			float Metalness = 0.5f;
 		};
 
 		struct InstanceData

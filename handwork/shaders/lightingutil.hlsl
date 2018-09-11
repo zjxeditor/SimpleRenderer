@@ -15,9 +15,9 @@ struct Light
 
 struct Material
 {
-    float4 DiffuseAlbedo;
-    float3 FresnelR0;
-    float Shininess;
+    float3 Albedo;  //Fresnel/Diffuse
+    float Roughness;
+    float Metalness;
 };
 
 float CalcAttenuation(float d, float falloffStart, float falloffEnd)
@@ -92,11 +92,14 @@ float Smith_G(float3 toEye, float3 lightVec, float3 halfVec, float3 normal, floa
 // Use Cook Torrance model to calculate light.
 float3 CookTorrance(float3 lightStrength, float3 lightVec, float3 normal, float3 toEye, Material mat)
 {
+    float3 diffuse = mat.Albedo * (1.0f - mat.Metalness);
+    float3 specular = lerp(float3(0.04f, 0.04f, 0.04f), mat.Albedo, float3(mat.Metalness, mat.Metalness, mat.Metalness));
+
     float3 halfVec = normalize(toEye + lightVec);
-    float roughness = 1.0f - mat.Shininess;
+    float roughness = mat.Roughness;
     float D = GGX_D(halfVec, normal, roughness);
     float G = Smith_G(toEye, lightVec, halfVec, normal, roughness);
-    float3 F = SchlickFresnel(mat.FresnelR0, halfVec, lightVec);
+    float3 F = SchlickFresnel(specular, halfVec, lightVec);
 
     float3 specAlbedo = D * G * F;
     float cos = max(dot(lightVec, normal), 0.0f) * max(dot(toEye, normal), 0.0f);
@@ -108,17 +111,20 @@ float3 CookTorrance(float3 lightStrength, float3 lightVec, float3 normal, float3
 
     float disney = DisneyDiffuse(lightVec, normal, toEye, roughness);
 
-    return (mat.DiffuseAlbedo.rgb * disney + specAlbedo) * lightStrength;
+    return (diffuse * disney + specAlbedo) * lightStrength;
 }
 
 // Use BlinnPhong model to calculate light.
 float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 toEye, Material mat)
 {
-    const float m = mat.Shininess * 256.0f;
+    float3 diffuse = mat.Albedo * (1.0f - mat.Metalness);
+    float3 specular = lerp(float3(0.04f, 0.04f, 0.04f), mat.Albedo, float3(mat.Metalness, mat.Metalness, mat.Metalness));
+
+    const float m = (1.0f - mat.Roughness) * 256.0f;
     float3 halfVec = normalize(toEye + lightVec);
 
     float roughnessFactor = (m + 8.0f) * pow(max(dot(halfVec, normal), 0.0f), m) / 8.0f;
-    float3 fresnelFactor = SchlickFresnel(mat.FresnelR0, halfVec, lightVec);
+    float3 fresnelFactor = SchlickFresnel(specular, halfVec, lightVec);
 
     float3 specAlbedo = fresnelFactor * roughnessFactor;
 
@@ -126,7 +132,7 @@ float3 BlinnPhong(float3 lightStrength, float3 lightVec, float3 normal, float3 t
     // doing LDR rendering.  So scale it down a bit.
     specAlbedo = specAlbedo / (specAlbedo + 1.0f);
 
-    return (mat.DiffuseAlbedo.rgb + specAlbedo) * lightStrength;
+    return (diffuse + specAlbedo) * lightStrength;
 }
 
 //---------------------------------------------------------------------------------------
@@ -235,7 +241,7 @@ float4 ComputeLighting(Light gLights[MaxLights], Material mat,
     }
 #endif 
 
-    return float4(result, 0.0f);
+    return float4(result, 1.0f);
 }
 
 

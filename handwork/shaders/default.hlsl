@@ -70,11 +70,11 @@ VertexOut VS(VertexIn vin)
 float4 PS(VertexOut pin) : SV_Target
 {
 	// Fetch the material data.
-	MaterialData matData = gMaterialData[gMaterialIndex];
-	float4 diffuseAlbedo = matData.DiffuseAlbedo;
-	float3 fresnelR0 = matData.FresnelR0;
-	float  roughness = matData.Roughness;
-	
+	Material mat = gMaterialData[gMaterialIndex];
+    float4 diffuseAlbedo;
+    diffuseAlbedo.rgb = mat.Albedo * (1.0f - mat.Metalness);
+    diffuseAlbedo.a = 1.0f;
+    
 	// Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
 
@@ -92,8 +92,6 @@ float4 PS(VertexOut pin) : SV_Target
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
     shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
 
-    const float shininess = (1.0f - roughness);
-    Material mat = { diffuseAlbedo, fresnelR0, shininess };
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor);
 
@@ -139,10 +137,10 @@ VertexInstOut VSInst(VertexIn vin, uint instanceID : SV_InstanceID)
 float4 PSInst(VertexInstOut pin) : SV_Target
 {
 	// Fetch the material data.
-    MaterialData matData = gMaterialData[pin.MatIndex];
-    float4 diffuseAlbedo = matData.DiffuseAlbedo;
-    float3 fresnelR0 = matData.FresnelR0;
-    float roughness = matData.Roughness;
+    Material mat = gMaterialData[pin.MatIndex];
+    float4 diffuseAlbedo;
+    diffuseAlbedo.rgb = mat.Albedo * (1.0f - mat.Metalness);
+    diffuseAlbedo.a = 1.0f;
 	
 	// Interpolating normal can unnormalize it, so renormalize it.
     pin.NormalW = normalize(pin.NormalW);
@@ -161,8 +159,6 @@ float4 PSInst(VertexInstOut pin) : SV_Target
     float3 shadowFactor = float3(1.0f, 1.0f, 1.0f);
     shadowFactor[0] = CalcShadowFactor(pin.ShadowPosH);
 
-    const float shininess = (1.0f - roughness);
-    Material mat = { diffuseAlbedo, fresnelR0, shininess };
     float4 directLight = ComputeLighting(gLights, mat, pin.PosW,
         pin.NormalW, toEyeW, shadowFactor);
 

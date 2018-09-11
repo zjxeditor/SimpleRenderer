@@ -47,7 +47,7 @@ namespace handwork
 
 	int FindJoint(const std::string& name, const std::vector<JointInfo>& skeletonInfo)
 	{
-		for (size_t i = 0; i < skeletonInfo.size(); ++i)
+		for (int i = 0; i < (int)skeletonInfo.size(); ++i)
 		{
 			if (skeletonInfo[i].Name == name)
 				return i;
@@ -170,7 +170,7 @@ namespace handwork
 			if (!item.Valid)
 				continue;
 
-			newPos[i] = temp.size();
+			newPos[i] = (int)temp.size();
 			if (item.Parent < 0)
 				temp.push_back(item);
 			else
@@ -299,7 +299,7 @@ namespace handwork
 		}
 		for (int i = 0; i < node->GetChildCount(); i++)
 		{
-			ProcessSkeletonHierarchyRecursively(node->GetChild(i), skeletonInfo.size(), myIndex, skeletonInfo);
+			ProcessSkeletonHierarchyRecursively(node->GetChild(i), (int)skeletonInfo.size(), myIndex, skeletonInfo);
 		}
 	}
 
@@ -465,7 +465,7 @@ namespace handwork
 				[offset](int a) { return a + offset; });
 			meshIndices.insert(meshIndices.end(), currentIndices.begin(), currentIndices.end());
 			
-			offset += currentVertices.size();
+			offset += (int)currentVertices.size();
 		}
 	}
 

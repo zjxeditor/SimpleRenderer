@@ -47,7 +47,7 @@ namespace handwork
 		// Data format is [ P(xyz), du(xyz), dv(xyz) ].
 		const float* EvaluateLimit(int& num);
 
-		int GetTopologyLevelNum() const { return topologyInformation.size(); }
+		int GetTopologyLevelNum() const { return (int)topologyInformation.size(); }
 
 		const TopologyInfo* GetTopology(int level) { return &topologyInformation[level]; }
 

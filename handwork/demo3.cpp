@@ -84,34 +84,34 @@
 //	// Add materials
 //	Material bricks0;
 //	bricks0.Name = "bricks0";
-//	bricks0.DiffuseAlbedo = Vector4f(1.0f, 1.0f, 1.0f, 1.0f);
-//	bricks0.FresnelR0 = Vector3f(0.1f, 0.1f, 0.1f);
+//	bricks0.Albedo = Vector3f(1.0f, 1.0f, 1.0f);
 //	bricks0.Roughness = 0.3f;
+//	bricks0.Metalness = 0.1f;
 //
 //	Material tile0;
 //	tile0.Name = "tile0";
 //	tile0.MatCBIndex = 2;
-//	tile0.DiffuseAlbedo = Vector4f(0.9f, 0.9f, 0.9f, 1.0f);
-//	tile0.FresnelR0 = Vector3f(0.2f, 0.2f, 0.2f);
+//	tile0.Albedo = Vector3f(0.9f, 0.9f, 1.0f);
 //	tile0.Roughness = 0.1f;
+//	tile0.Metalness = 0.2f;
 //
 //	Material mirror0;
 //	mirror0.Name = "mirror0";
-//	mirror0.DiffuseAlbedo = Vector4f(0.0f, 0.0f, 0.0f, 1.0f);
-//	mirror0.FresnelR0 = Vector3f(0.98f, 0.97f, 0.95f);
+//	mirror0.Albedo = Vector3f(0.98f, 0.97f, 0.95f);
 //	mirror0.Roughness = 0.1f;
+//	mirror0.Metalness = 0.9f;
 //
 //	Material skullMat;
 //	skullMat.Name = "skullMat";
-//	skullMat.DiffuseAlbedo = Vector4f(0.3f, 0.3f, 0.3f, 1.0f);
-//	skullMat.FresnelR0 = Vector3f(0.6f, 0.6f, 0.6f);
+//	skullMat.Albedo = Vector3f(0.3f, 0.3f, 0.3f);
 //	skullMat.Roughness = 0.2f;
+//	skullMat.Metalness = 0.6f;
 //
 //	Material sky;
 //	sky.Name = "sky";
-//	sky.DiffuseAlbedo = Vector4f(1.0f, 1.0f, 1.0f, 1.0f);
-//	sky.FresnelR0 = Vector3f(0.1f, 0.1f, 0.1f);
+//	sky.Albedo = Vector3f(1.0f, 1.0f, 1.0f);
 //	sky.Roughness = 1.0f;
+//	sky.Metalness = 0.1f;
 //
 //	mRenderResources->AddMaterial(bricks0);
 //	mRenderResources->AddMaterial(tile0);

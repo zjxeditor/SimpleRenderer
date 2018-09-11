@@ -14,13 +14,6 @@
 // Include structures and functions for lighting.
 #include "lightingutil.hlsl"
 
-struct MaterialData
-{
-	float4   DiffuseAlbedo;
-	float3   FresnelR0;
-	float    Roughness;
-};
-
 struct InstanceData
 {
     float4x4 World;
@@ -30,7 +23,7 @@ struct InstanceData
     uint InstPad2;
 };
 
-StructuredBuffer<MaterialData> gMaterialData : register(t0);
+StructuredBuffer<Material> gMaterialData : register(t0);
 StructuredBuffer<InstanceData> gInstanceData : register(t1);
 Texture2D gShadowMap : register(t2);
 Texture2D gSsaoMap : register(t3);

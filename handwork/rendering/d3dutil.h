@@ -230,9 +230,9 @@ namespace handwork
 			int NumFramesDirty = gNumFrameResources;
 
 			// Material constant buffer data used for shading.
-			Vector4f DiffuseAlbedo = { 1.0f, 1.0f, 1.0f, 1.0f };
-			Vector3f FresnelR0 = { 0.01f, 0.01f, 0.01f };
-			float Roughness = .25f;
+			Vector3f Albedo = { 1.0f, 1.0f, 1.0f };	//Fresnel/Diffuse
+			float Roughness = 0.5f;
+			float Metalness = 0.5f;
 		};
 
 		// Simple struct to represent a instance specific data.

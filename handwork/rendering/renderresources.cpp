@@ -168,7 +168,7 @@ namespace handwork
 				else
 				{
 					// Instancing.
-					currInstCB->CopyContinuousData(e->InstCBIndex, e->Instances.size(), &(e->Instances[0]));
+					currInstCB->CopyContinuousData(e->InstCBIndex, (int)e->Instances.size(), &(e->Instances[0]));
 				}
 
 				// Next FrameResource need to be updated too.
@@ -185,9 +185,9 @@ namespace handwork
 				if (mat->NumFramesDirty > 0)
 				{
 					MaterialData matData;
-					matData.DiffuseAlbedo = mat->DiffuseAlbedo;
-					matData.FresnelR0 = mat->FresnelR0;
+					matData.Albedo = mat->Albedo;
 					matData.Roughness = mat->Roughness;
+					matData.Metalness = mat->Metalness;
 
 					currMaterialBuffer->CopyData(mat->MatCBIndex, matData);
 
@@ -503,9 +503,9 @@ namespace handwork
 		{
 			auto matPtr = std::make_unique<Material>();
 			matPtr->Name = mat.Name;
-			matPtr->DiffuseAlbedo = mat.DiffuseAlbedo;
-			matPtr->FresnelR0 = mat.FresnelR0;
+			matPtr->Albedo = mat.Albedo;
 			matPtr->Roughness = mat.Roughness;
+			matPtr->Metalness = mat.Metalness;
 
 			if (mMaterials.find(matPtr->Name) != mMaterials.end())
 			{
@@ -1197,7 +1197,7 @@ namespace handwork
 					// Instancing.
 					cmdList->SetGraphicsRootConstantBufferView(0, objCBAddress);
 					cmdList->SetGraphicsRootShaderResourceView(3, instBufferAddress + ri->InstCBIndex * instElementSize);
-					cmdList->DrawIndexedInstanced(ri->IndexCount, ri->Instances.size(), ri->StartIndexLocation, ri->BaseVertexLocation, 0);
+					cmdList->DrawIndexedInstanced(ri->IndexCount, (UINT)ri->Instances.size(), ri->StartIndexLocation, ri->BaseVertexLocation, 0);
 				}
 			}
 		}

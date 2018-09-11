@@ -93,30 +93,30 @@
 //	// Add materials
 //	Material matyellow;
 //	matyellow.Name = "yellow";
-//	matyellow.DiffuseAlbedo = Vector4f(0.83f, 0.58f, 0.05f, 1.0f);
-//	matyellow.FresnelR0 = Vector3f(0.05f, 0.05f, 0.05f);
+//	matyellow.Albedo = Vector3f(0.83f, 0.58f, 0.05f);
 //	matyellow.Roughness = 0.3f;
+//	matyellow.Metalness = 0.3f;
 //	mRenderResources->AddMaterial(matyellow);
 //	
 //	Material matred;
 //	matred.Name = "red";
-//	matred.DiffuseAlbedo = Vector4f(0.89f, 0.09f, 0.37f, 1.0f);
-//	matred.FresnelR0 = Vector3f(0.08f, 0.08f, 0.08f);
+//	matred.Albedo = Vector3f(0.89f, 0.09f, 0.37f);
 //	matred.Roughness = 0.3f;
+//	matred.Metalness = 0.6f;
 //	mRenderResources->AddMaterial(matred);
 //
 //	Material matblue;
 //	matblue.Name = "blue";
-//	matblue.DiffuseAlbedo = Vector4f(0.09f, 0.41f, 0.93f, 1.0f);
-//	matblue.FresnelR0 = Vector3f(0.07f, 0.07f, 0.07f);
+//	matblue.Albedo = Vector3f(0.09f, 0.41f, 0.93f);
 //	matblue.Roughness = 0.3f;
+//	matblue.Metalness = 0.6f;
 //	mRenderResources->AddMaterial(matblue);
 //
 //	Material matgreen;
 //	matgreen.Name = "green";
-//	matgreen.DiffuseAlbedo = Vector4f(0.07f, 0.78f, 0.27f, 1.0f);
-//	matgreen.FresnelR0 = Vector3f(0.06f, 0.06f, 0.06f);
+//	matgreen.Albedo = Vector3f(0.07f, 0.78f, 0.27f);
 //	matgreen.Roughness = 0.3f;
+//	matgreen.Metalness = 0.6f;
 //	mRenderResources->AddMaterial(matgreen);
 //
 //#pragma endregion Add Materials

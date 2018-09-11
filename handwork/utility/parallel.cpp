@@ -312,7 +312,7 @@ namespace handwork
 		// Set up state so that the worker threads will know that we would like
 		// them to report their thread-specific stats when they wake up.
 		reportWorkerStats = true;
-		reporterCount = threads.size();
+		reporterCount = (int)threads.size();
 
 		// Wake up the worker threads.
 		workListCondition.notify_all();
