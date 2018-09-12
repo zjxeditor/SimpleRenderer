@@ -23,9 +23,9 @@ What you can use it for:
 4. Learn DirectX 12 with this simple renderer.
 5. Reuse the code such as geometry math calculation and FBX importation.
 
-![1](.\images\1.png)   
+![1](https://github.com/zjxeditor/SimpleRenderer/blob/master/images/1.png)   
 
-![2](.\images\2.png) 
+![2](https://github.com/zjxeditor/SimpleRenderer/blob/master/images/2.png) 
 
 ### Build
 
