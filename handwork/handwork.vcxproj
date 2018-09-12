@@ -39,10 +39,6 @@
     <ClCompile Include="rendering\shadowmap.cpp" />
     <ClCompile Include="rendering\ssao.cpp" />
     <ClCompile Include="utility\error.cpp" />
-    <ClCompile Include="utility\fileutil.cpp" />
-    <ClCompile Include="utility\floatfile.cpp" />
-    <ClCompile Include="utility\memory.cpp" />
-    <ClCompile Include="utility\parallel.cpp" />
     <ClCompile Include="utility\quaternion.cpp" />
     <ClCompile Include="utility\transform.cpp" />
   </ItemGroup>
@@ -66,14 +62,9 @@
     <ClInclude Include="rendering\ssao.h" />
     <ClInclude Include="rendering\uploadbuffer.h" />
     <ClInclude Include="utility\error.h" />
-    <ClInclude Include="utility\fileutil.h" />
-    <ClInclude Include="utility\floatfile.h" />
     <ClInclude Include="utility\geometry.h" />
     <ClInclude Include="utility\interval.h" />
-    <ClInclude Include="utility\memory.h" />
-    <ClInclude Include="utility\parallel.h" />
     <ClInclude Include="utility\quaternion.h" />
-    <ClInclude Include="utility\rng.h" />
     <ClInclude Include="utility\stringprint.h" />
     <ClInclude Include="utility\transform.h" />
     <ClInclude Include="utility\utility.h" />

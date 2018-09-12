@@ -15,18 +15,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="utility\fileutil.cpp">
-      <Filter>utility</Filter>
-    </ClCompile>
-    <ClCompile Include="utility\floatfile.cpp">
-      <Filter>utility</Filter>
-    </ClCompile>
-    <ClCompile Include="utility\memory.cpp">
-      <Filter>utility</Filter>
-    </ClCompile>
-    <ClCompile Include="utility\parallel.cpp">
-      <Filter>utility</Filter>
-    </ClCompile>
     <ClCompile Include="utility\transform.cpp">
       <Filter>utility</Filter>
     </ClCompile>
@@ -85,22 +73,7 @@
     <ClCompile Include="demo4.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="utility\fileutil.h">
-      <Filter>utility</Filter>
-    </ClInclude>
-    <ClInclude Include="utility\floatfile.h">
-      <Filter>utility</Filter>
-    </ClInclude>
     <ClInclude Include="utility\geometry.h">
-      <Filter>utility</Filter>
-    </ClInclude>
-    <ClInclude Include="utility\memory.h">
-      <Filter>utility</Filter>
-    </ClInclude>
-    <ClInclude Include="utility\parallel.h">
-      <Filter>utility</Filter>
-    </ClInclude>
-    <ClInclude Include="utility\rng.h">
       <Filter>utility</Filter>
     </ClInclude>
     <ClInclude Include="utility\transform.h">
