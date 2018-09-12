@@ -83,3 +83,4 @@ There are 5 demos for you to get familiar with this simple renderer.
 1. Camera navigation keys are `WASD`. Press and hold the left mouse button, then move the mouse to change the camera view direction.
 2. `VSync` is enabled by default. If you want to disable `VSync`, in `DeviceResources::Present` method change the code `HRESULT hr = mSwapChain->Present(1, 0);` to `HRESULT hr = mSwapChain->Present(0, 0);`.
 3. Texture is not supported yet.
+4. Special thanks for `mmp/pbrt-v3` and `d3dcoder/d3d12book` repositories.
